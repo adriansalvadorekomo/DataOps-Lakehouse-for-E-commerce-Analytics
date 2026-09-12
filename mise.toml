@@ -23,6 +23,18 @@ PGDATABASE = "smart"
 description = "Ensure local Postgres is up, migrated and reachable (run first)"
 run = "sh scripts/dev/db_up.sh"
 
+[tasks.stop-all]
+description = "Stop the dev stack: frontend, backend, Postgres (bracket patterns never match their own shell)"
+run = """
+pkill -f "vite --port 517[3]" 2>/dev/null || true
+pkill -f "uvicorn backend[.]app[.]main" 2>/dev/null || true
+PGBIN=$(echo ~/.local/share/smart-erp-pgvenv/lib/python*/site-packages/pgserver/pginstall/bin)
+if [ -x "$PGBIN/pg_ctl" ]; then
+  "$PGBIN/pg_ctl" -D ~/.local/share/smart-erp-pgdata -m fast stop 2>/dev/null || true
+fi
+echo "stopped: frontend :5173, backend :8000, postgres :5434"
+"""
+
 [tasks.dev-backend]
 description = "Serve the FastAPI backend on :8000 (run dev-db first)"
 run = "uv run uvicorn backend.app.main:app --host 127.0.0.1 --port 8000"
