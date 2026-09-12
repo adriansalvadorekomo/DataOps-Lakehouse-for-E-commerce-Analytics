@@ -100,6 +100,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dry-run", action="store_true",
                     help="print the reset payload, change nothing")
+    ap.add_argument("--branch", default=os.environ.get("LAKEHOUSE_BRANCH", "main"),
+                    help="Repos branch the job's notebooks/SQL run from")
     args = ap.parse_args()
     for var in ("DATABRICKS_HOST", "DATABRICKS_TOKEN", "WAREHOUSE_ID"):
         if not os.environ.get(var):
@@ -129,7 +131,28 @@ def main() -> int:
     api("POST", "/api/2.1/jobs/reset",
         {"job_id": job["job_id"], "new_settings": settings})
     print(f"job {job['job_id']} reset applied")
+    sync_repos_branch(args.branch)
     return 0
+
+
+def sync_repos_branch(branch: str) -> None:
+    """Point the workspace Repos checkout at the released branch.
+
+    The job reads notebooks/SQL from Repos — deploying the definition without
+    the code runs stale logic (proven live: sql_refresh kept failing on the
+    pre-fix checkout). Repo listing is broken on this workspace, so the ID is
+    pinned (override via REPOS_ID) and verified on every run.
+    """
+    repo_id = os.environ.get("REPOS_ID", "751655018240305")
+    try:
+        repo = api("GET", f"/api/2.0/repos/{repo_id}")
+    except SystemExit as e:
+        raise SystemExit(f"Repos {repo_id} unreachable — set REPOS_ID. {e}")
+    if repo.get("branch") != branch:
+        api("PATCH", f"/api/2.0/repos/{repo_id}", {"branch": branch})
+        print(f"repos {repo_id}: {repo.get('branch')} → {branch} (pulls on next job run)")
+    else:
+        print(f"repos {repo_id} already on {branch} @ {(repo.get('head_commit_id') or '')[:8]}")
 
 
 if __name__ == "__main__":

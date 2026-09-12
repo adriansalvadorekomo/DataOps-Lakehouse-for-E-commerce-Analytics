@@ -77,7 +77,9 @@ def wait_run(run_id: int) -> dict:
     while True:
         run = api("GET", f"/api/2.1/jobs/runs/get?run_id={run_id}")
         state = run.get("state") or {}
-        if state.get("life_cycle_state") == "TERMINATED":
+        # TERMINATED is the happy path; INTERNAL_ERROR/SKIPPED are how failed
+        # runs actually surface (life_cycle_state is not always TERMINATED).
+        if state.get("life_cycle_state") in ("TERMINATED", "INTERNAL_ERROR", "SKIPPED"):
             return run
         if time.time() > deadline:
             raise SystemExit(f"run {run_id} timed out after {TIMEOUT_SECONDS}s")
