@@ -64,11 +64,14 @@ def train_rf(X: np.ndarray, y: np.ndarray):
 
 
 def train_prophet(dates: pd.DatetimeIndex, y: np.ndarray):
+    import contextlib
+    import io
     import logging as _logging
 
     _logging.getLogger("cmdstanpy").disabled = True
     _logging.getLogger("prophet").disabled = True
-    from prophet import Prophet
+    with contextlib.redirect_stderr(io.StringIO()):  # prophet print()s a plotly notice on import
+        from prophet import Prophet
 
     model = Prophet(daily_seasonality=False, weekly_seasonality=True,
                     yearly_seasonality=True)
