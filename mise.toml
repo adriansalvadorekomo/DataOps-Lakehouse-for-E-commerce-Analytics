@@ -19,6 +19,10 @@ PGPORT = "5434"
 PGUSER = "magrey"
 PGDATABASE = "smart"
 
+[tasks.help]
+description = "List all tasks with descriptions (this help)"
+run = "mise tasks"
+
 [tasks.dev-db]
 description = "Ensure local Postgres is up, migrated and reachable (run first)"
 run = "sh scripts/dev/db_up.sh"
@@ -69,3 +73,27 @@ run = [
   "python3 scripts/cd/deploy_job.py {{arg(name=\"extra\", default=\"--dry-run\")}}",
   # then: python3 scripts/cd/databricks_release.py   (runs the job — minutes)
 ]
+
+[tasks.dbx-status]
+description = "Workspace snapshot: auth, medallion job, landing volume (read-only)"
+run = "databricks auth describe && databricks jobs get 228018114268524 --output json | python3 -c \"import json,sys; d=json.load(sys.stdin); print('job:', d.get('settings',{}).get('name'))\" && databricks fs ls dbfs:/Volumes/workspace/bronze/landing/"
+
+[tasks.dbx-upload]
+description = "Upload the full 1M CSV to the landing volume (~7 min, idempotent)"
+run = "databricks fs cp data/amazon-e-commerce/amazon_ecommerce_1M.csv dbfs:/Volumes/workspace/bronze/landing/amazon_ecommerce_1M.csv"
+
+[tasks.dbx-validate]
+description = "Gold contract check on the warehouse (counts + revenue, read-only)"
+run = "python3 scripts/cd/dbx_validate.py"
+
+[tasks.tf-validate]
+description = "Terraform init + validate (no creds, CI parity)"
+run = "sh -c 'cd infra/terraform && terraform init -backend=false >/dev/null && terraform validate && rm -rf .terraform'"
+
+[tasks.tf-plan]
+description = "Terraform plan against the workspace (needs DATABRICKS_* env)"
+run = "sh -c 'cd infra/terraform && terraform init -input=false >/dev/null && terraform plan -input=false -detailed-exitcode; rc=$?; rm -rf .terraform; exit $rc'"
+
+[tasks.tf-apply]
+description = "Terraform apply to the workspace (needs DATABRICKS_* env; review plan first)"
+run = "sh -c 'cd infra/terraform && terraform init -input=false >/dev/null && terraform apply -input=false -auto-approve; rm -rf .terraform'"
