@@ -94,6 +94,11 @@ Setup (one time, owner): GitHub Environment **`databricks-prod`**
 `WAREHOUSE_ID` (validation warehouse). Concurrency group
 `databricks-workspace` serializes runs (Free Edition runs one at a time).
 
+Local runs use the same secrets without ever committing them: `.env`
+(git-ignored) is auto-loaded by `mise.toml`, so `mise run databricks-release`
+and friends inherit `DATABRICKS_*` directly — the file equivalent of the
+`databricks-prod` environment.
+
 Deliberate splits (why not Terraform / wider scopes in CD):
 
 - **No `terraform apply` in CD:** state is local-only by design (holds

@@ -1,0 +1,45 @@
+# Smart-ERP task runner + toolchain (mise).
+# - Toolchain: Python 3.12 (matches .python-version). Node comes from your
+#   own mise install (frontend works on 22+; not pinned here on purpose).
+# - Secrets: tasks inherit .env automatically (DATABRICKS_*, PG*) — the file
+#   stays git-ignored; CI/CD equivalent is the `databricks-prod` environment.
+# - Every `run` below mirrors a documented command (READMEs, docs/*).
+
+min_version = "2026.1.0"
+
+[tools]
+python = "3.12"
+
+[env]
+_.file = ".env"
+
+[tasks.dev-backend]
+description = "Serve the FastAPI backend on :8000 (needs PG* env)"
+run = "uv run uvicorn backend.app.main:app --host 127.0.0.1 --port 8000"
+
+[tasks.dev-frontend]
+description = "Serve the Vite dashboard on :5173 (proxies /api to :8000)"
+run = "npm run dev --prefix frontend -- --port 5173 --strictPort --host 127.0.0.1"
+
+[tasks.seed]
+description = "Ingest the 1M CSV into Postgres + run acceptance checks"
+run = ["python3 scripts/seed/ingest.py", "python3 scripts/seed/acceptance.py"]
+
+[tasks.forecast]
+description = "Retrain RF + Prophet and replace revenue_forecasts"
+run = "uv run python -m backend.app.jobs.refresh_forecast"
+
+[tasks.test-backend]
+description = "Backend pytest on throwaway Postgres (needs PG* env)"
+run = "uv run pytest backend/tests scripts/cd/test_cd.py -q"
+
+[tasks.cd-dispatch]
+description = "Trigger the CD workflow on main (images → smoke → Databricks)"
+run = "gh workflow run cd.yml --ref main"
+
+[tasks.databricks-release]
+description = "Deploy job JSON + run medallion + validate Gold (needs DATABRICKS_* env)"
+run = [
+  "python3 scripts/cd/deploy_job.py {{arg(name=\"extra\", default=\"--dry-run\")}}",
+  # then: python3 scripts/cd/databricks_release.py   (runs the job — minutes)
+]
