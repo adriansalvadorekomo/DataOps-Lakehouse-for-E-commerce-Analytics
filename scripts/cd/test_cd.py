@@ -57,6 +57,9 @@ def test_cd_workflow_files_parse():
     assert set(compose["services"]) == {"postgres", "backend", "frontend"}
     assert compose["services"]["backend"]["depends_on"]["postgres"]["condition"] == "service_healthy"
     assert compose["services"]["frontend"]["depends_on"]["backend"]["condition"] == "service_healthy"
+    # every service self-reports health (no blind curl races in smoke)
+    for svc in ("postgres", "backend", "frontend"):
+        assert "healthcheck" in compose["services"][svc], svc
 
 
 def test_entrypoint_syntax():
