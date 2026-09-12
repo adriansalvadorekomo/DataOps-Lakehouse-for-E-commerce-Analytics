@@ -83,11 +83,18 @@ jobs:
             sleep 10
           done
           curl -sf localhost:8000/health
+      - name: Wait for healthy frontend (nginx workers take seconds to spawn)
+        run: |
+          for i in $(seq 1 12); do
+            curl -sf -o /dev/null localhost:8080/ && break
+            sleep 10
+          done
+          curl -sf -o /dev/null localhost:8080/
       - name: API + frontend checks
         run: |
-          curl -sf localhost:8000/stats/overview | grep -q total_orders
-          curl -sf -o /dev/null localhost:8080/
-          curl -sf localhost:8080/api/health | grep -q '"db":"up"'
+          echo "== backend overview"; curl -sf localhost:8000/stats/overview | grep -q total_orders
+          echo "== proxied API"; curl -sf localhost:8080/api/health | grep -q '"db":"up"'
+          echo "== checks green"
       - name: Dump logs on failure
         if: failure()
         run: docker compose -f infra/docker-compose.yml logs --tail=100

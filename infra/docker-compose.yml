@@ -65,6 +65,12 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      # nginx:alpine ships wget (no curl): probe the served app itself.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
 volumes:
   pgdata:
