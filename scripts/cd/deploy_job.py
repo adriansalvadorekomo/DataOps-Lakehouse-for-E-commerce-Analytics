@@ -30,6 +30,8 @@ JOB_NAME = "smart-erp-medallion"
 
 
 def api(method: str, path: str, payload: dict | None = None) -> dict:
+    import urllib.error
+
     host = os.environ["DATABRICKS_HOST"].rstrip("/")
     req = urllib.request.Request(
         f"{host}{path}",
@@ -40,8 +42,12 @@ def api(method: str, path: str, payload: dict | None = None) -> dict:
         },
         method=method,
     )
-    with urllib.request.urlopen(req, timeout=120) as res:
-        return json.load(res)
+    try:
+        with urllib.request.urlopen(req, timeout=120) as res:
+            return json.load(res)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")[:500]
+        raise SystemExit(f"API {method} {path} → HTTP {e.code}: {body}")
 
 
 def build_settings(live: dict, contract: dict, warehouse_id: str) -> dict:
@@ -54,12 +60,16 @@ def build_settings(live: dict, contract: dict, warehouse_id: str) -> dict:
             entry: dict = {
                 "task_key": key,
                 "description": task.get("description", ""),
+                # Notebook tasks ride the job-level serverless environment.
+                "environment_key": "serverless",
                 "notebook_task": {
                     "notebook_path": nt["notebook_path"],
                     "base_parameters": nt.get("base_parameters", {}),
                 },
             }
         elif "sql_task" in task:
+            # SQL file tasks run on their warehouse — environment_key here is
+            # rejected (INVALID_PARAMETER_VALUE); compute comes from below.
             entry = {
                 "task_key": key,
                 "description": task.get("description", ""),
@@ -72,7 +82,6 @@ def build_settings(live: dict, contract: dict, warehouse_id: str) -> dict:
             raise SystemExit(f"task {key!r}: unsupported shape (need notebook_task/sql_task)")
         for dep in task.get("depends_on", []):
             entry.setdefault("depends_on", []).append({"task_key": dep["task_key"]})
-        entry["environment_key"] = "serverless"
         tasks.append(entry)
     settings = {
         "name": contract.get("name", JOB_NAME),
@@ -91,6 +100,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dry-run", action="store_true",
                     help="print the reset payload, change nothing")
+    ap.add_argument("--branch", default=os.environ.get("LAKEHOUSE_BRANCH", "main"),
+                    help="Repos branch the job's notebooks/SQL run from")
     args = ap.parse_args()
     for var in ("DATABRICKS_HOST", "DATABRICKS_TOKEN", "WAREHOUSE_ID"):
         if not os.environ.get(var):
@@ -120,7 +131,28 @@ def main() -> int:
     api("POST", "/api/2.1/jobs/reset",
         {"job_id": job["job_id"], "new_settings": settings})
     print(f"job {job['job_id']} reset applied")
+    sync_repos_branch(args.branch)
     return 0
+
+
+def sync_repos_branch(branch: str) -> None:
+    """Point the workspace Repos checkout at the released branch.
+
+    The job reads notebooks/SQL from Repos — deploying the definition without
+    the code runs stale logic (proven live: sql_refresh kept failing on the
+    pre-fix checkout). Repo listing is broken on this workspace, so the ID is
+    pinned (override via REPOS_ID) and verified on every run.
+    """
+    repo_id = os.environ.get("REPOS_ID", "751655018240305")
+    try:
+        repo = api("GET", f"/api/2.0/repos/{repo_id}")
+    except SystemExit as e:
+        raise SystemExit(f"Repos {repo_id} unreachable — set REPOS_ID. {e}")
+    if repo.get("branch") != branch:
+        api("PATCH", f"/api/2.0/repos/{repo_id}", {"branch": branch})
+        print(f"repos {repo_id}: {repo.get('branch')} → {branch} (pulls on next job run)")
+    else:
+        print(f"repos {repo_id} already on {branch} @ {(repo.get('head_commit_id') or '')[:8]}")
 
 
 if __name__ == "__main__":

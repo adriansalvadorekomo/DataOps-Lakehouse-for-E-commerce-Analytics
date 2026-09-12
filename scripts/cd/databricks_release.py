@@ -44,6 +44,8 @@ def validate_gold(bronze: int, orders: int, items: int, fact: int,
 
 
 def api(method: str, path: str, payload: dict | None = None) -> dict:
+    import urllib.error
+
     host = os.environ["DATABRICKS_HOST"].rstrip("/")
     req = urllib.request.Request(
         f"{host}{path}",
@@ -54,8 +56,12 @@ def api(method: str, path: str, payload: dict | None = None) -> dict:
         },
         method=method,
     )
-    with urllib.request.urlopen(req, timeout=120) as res:
-        return json.load(res)
+    try:
+        with urllib.request.urlopen(req, timeout=120) as res:
+            return json.load(res)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")[:500]
+        raise SystemExit(f"API {method} {path} → HTTP {e.code}: {body}")
 
 
 def resolve_job_id() -> int:
@@ -71,7 +77,9 @@ def wait_run(run_id: int) -> dict:
     while True:
         run = api("GET", f"/api/2.1/jobs/runs/get?run_id={run_id}")
         state = run.get("state") or {}
-        if state.get("life_cycle_state") == "TERMINATED":
+        # TERMINATED is the happy path; INTERNAL_ERROR/SKIPPED are how failed
+        # runs actually surface (life_cycle_state is not always TERMINATED).
+        if state.get("life_cycle_state") in ("TERMINATED", "INTERNAL_ERROR", "SKIPPED"):
             return run
         if time.time() > deadline:
             raise SystemExit(f"run {run_id} timed out after {TIMEOUT_SECONDS}s")
