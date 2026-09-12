@@ -23,6 +23,10 @@ PGDATABASE = "smart"
 description = "Ensure local Postgres is up, migrated and reachable (run first)"
 run = "sh scripts/dev/db_up.sh"
 
+[tasks.dev]
+description = "Run the whole stack: Postgres → backend :8000 → frontend :5173"
+run = "sh scripts/dev/up_all.sh"
+
 [tasks.stop-all]
 description = "Stop the dev stack: frontend, backend, Postgres (bracket patterns never match their own shell)"
 run = """
