@@ -10,6 +10,10 @@ from __future__ import annotations
 
 import argparse
 import sys
+import warnings
+
+# Prophet announces its missing (unused) plotly backend on every import.
+warnings.filterwarnings("ignore", message="Importing plotly failed")
 
 from backend.app.core.db import get_session_factory
 from backend.app.services.forecast import HORIZON, refresh
