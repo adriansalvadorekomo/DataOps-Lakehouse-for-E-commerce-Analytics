@@ -43,6 +43,10 @@ def test_deploy_job_translation_matches_contract():
     assert "source_file" in bronze and "source" not in bronze  # the drift stays fixed
     sql = settings["tasks"][-1]["sql_task"]
     assert sql["warehouse_id"] == "wh-123"
+    # compute placement: notebooks ride serverless, the SQL task rides its
+    # warehouse (environment_key on it is a 400 from the API — proven live)
+    assert all(t.get("environment_key") == "serverless" for t in settings["tasks"][:-1])
+    assert "environment_key" not in settings["tasks"][-1]
     assert settings["environments"] == live["environments"]  # compute preserved
 
 

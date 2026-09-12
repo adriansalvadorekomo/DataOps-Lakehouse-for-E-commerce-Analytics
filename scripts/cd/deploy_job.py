@@ -30,6 +30,8 @@ JOB_NAME = "smart-erp-medallion"
 
 
 def api(method: str, path: str, payload: dict | None = None) -> dict:
+    import urllib.error
+
     host = os.environ["DATABRICKS_HOST"].rstrip("/")
     req = urllib.request.Request(
         f"{host}{path}",
@@ -40,8 +42,12 @@ def api(method: str, path: str, payload: dict | None = None) -> dict:
         },
         method=method,
     )
-    with urllib.request.urlopen(req, timeout=120) as res:
-        return json.load(res)
+    try:
+        with urllib.request.urlopen(req, timeout=120) as res:
+            return json.load(res)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")[:500]
+        raise SystemExit(f"API {method} {path} → HTTP {e.code}: {body}")
 
 
 def build_settings(live: dict, contract: dict, warehouse_id: str) -> dict:
@@ -54,12 +60,16 @@ def build_settings(live: dict, contract: dict, warehouse_id: str) -> dict:
             entry: dict = {
                 "task_key": key,
                 "description": task.get("description", ""),
+                # Notebook tasks ride the job-level serverless environment.
+                "environment_key": "serverless",
                 "notebook_task": {
                     "notebook_path": nt["notebook_path"],
                     "base_parameters": nt.get("base_parameters", {}),
                 },
             }
         elif "sql_task" in task:
+            # SQL file tasks run on their warehouse — environment_key here is
+            # rejected (INVALID_PARAMETER_VALUE); compute comes from below.
             entry = {
                 "task_key": key,
                 "description": task.get("description", ""),
@@ -72,7 +82,6 @@ def build_settings(live: dict, contract: dict, warehouse_id: str) -> dict:
             raise SystemExit(f"task {key!r}: unsupported shape (need notebook_task/sql_task)")
         for dep in task.get("depends_on", []):
             entry.setdefault("depends_on", []).append({"task_key": dep["task_key"]})
-        entry["environment_key"] = "serverless"
         tasks.append(entry)
     settings = {
         "name": contract.get("name", JOB_NAME),

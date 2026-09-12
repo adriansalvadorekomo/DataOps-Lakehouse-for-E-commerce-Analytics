@@ -44,6 +44,8 @@ def validate_gold(bronze: int, orders: int, items: int, fact: int,
 
 
 def api(method: str, path: str, payload: dict | None = None) -> dict:
+    import urllib.error
+
     host = os.environ["DATABRICKS_HOST"].rstrip("/")
     req = urllib.request.Request(
         f"{host}{path}",
@@ -54,8 +56,12 @@ def api(method: str, path: str, payload: dict | None = None) -> dict:
         },
         method=method,
     )
-    with urllib.request.urlopen(req, timeout=120) as res:
-        return json.load(res)
+    try:
+        with urllib.request.urlopen(req, timeout=120) as res:
+            return json.load(res)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")[:500]
+        raise SystemExit(f"API {method} {path} → HTTP {e.code}: {body}")
 
 
 def resolve_job_id() -> int:
