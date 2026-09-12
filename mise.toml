@@ -12,9 +12,19 @@ python = "3.12"
 
 [env]
 _.file = ".env"
+# Local-dev Postgres (self-healing via `mise run dev-db`; override per machine
+# with real env vars — explicit env always wins over these defaults).
+PGHOST = "/tmp/opencode"
+PGPORT = "5434"
+PGUSER = "magrey"
+PGDATABASE = "smart"
+
+[tasks.dev-db]
+description = "Ensure local Postgres is up, migrated and reachable (run first)"
+run = "sh scripts/dev/db_up.sh"
 
 [tasks.dev-backend]
-description = "Serve the FastAPI backend on :8000 (needs PG* env)"
+description = "Serve the FastAPI backend on :8000 (run dev-db first)"
 run = "uv run uvicorn backend.app.main:app --host 127.0.0.1 --port 8000"
 
 [tasks.dev-frontend]
