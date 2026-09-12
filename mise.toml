@@ -19,6 +19,10 @@ PGPORT = "5434"
 PGUSER = "magrey"
 PGDATABASE = "smart"
 
+[tasks.dataops]
+description = "Full DataOps loop, gated: db → seed → forecast → tests → lakehouse → report"
+run = "sh scripts/dev/dataops.sh"
+
 [tasks.help]
 description = "List all tasks with descriptions (this help)"
 run = "mise tasks"
