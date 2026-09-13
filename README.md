@@ -39,16 +39,7 @@ The answer this project demonstrates: a PostgreSQL OLTP core feeds a Databricks 
 
 ## The system at a glance
 
-```
-                    ┌──────────────────────────────────────────┐
-                    │           Databricks Lakehouse            │
-                    │                                          │
-PostgreSQL ─────────►  Bronze ──► Silver ──► DQ gate ──► Gold ├──► BI dashboards
-(OLTP core)  JDBC   │  (raw)    (clean)  (R1–R9)   (KPIs)   │──► ML / forecasts
-                    │                                          │──► AI assistant
-FastAPI ◄────────── ┘                                          │
-React dashboard ────────────────────────────────────────────── ┘
-```
+![System overview — CSV seed, PostgreSQL serving the React + FastAPI app live, Databricks medallion lakehouse, Gold serving BI, and the RAG + Genie AI loop](docs/diagrams/system-overview-img.png)
 
 PostgreSQL owns transactions. Databricks owns analytics. The application never queries the lakehouse for CRUD; the lakehouse never writes back to PostgreSQL.
 
@@ -209,7 +200,7 @@ smart-erp/
 ├── ml/                Revenue forecasting scripts + feasibility analysis
 ├── notebooks/         EDA + modeling Jupyter notebooks
 ├── docs/
-│   └── diagrams/      HTML diagrams (system-overview, order-lifecycle, system-design, medallion, data-flow, db-schema)
+│   └── diagrams/      HTML diagrams + PNG previews (system-overview, order-lifecycle, system-design, medallion, data-flow, db-schema)
 └── mise.toml          Task runner (18 tasks)
 ```
 

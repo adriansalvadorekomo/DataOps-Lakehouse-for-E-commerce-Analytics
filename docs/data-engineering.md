@@ -6,6 +6,8 @@ This document explains the data pipeline: what enters the system, how it moves t
 
 > **Diagram:** [Medallion lakehouse — Bronze → Silver → DQ gate → Gold](diagrams/medallion.html)
 
+![Medallion lakehouse — Bronze, Silver, DQ gate (R1–R9), and Gold tier contracts](diagrams/medallion-img.png)
+
 ## The data source
 
 **File:** `data/amazon-e-commerce/amazon_ecommerce_1M.csv`
