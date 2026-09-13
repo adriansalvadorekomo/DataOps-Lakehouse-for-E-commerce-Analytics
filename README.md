@@ -58,7 +58,7 @@ PostgreSQL owns transactions. Databricks owns analytics. The application never q
 
 | Diagram | What it shows |
 |---|---|
-| [System overview](docs/diagrams/system-overview.html) | The complete data journey: Source CSV + live writes → PostgreSQL → Databricks medallion → BI / AI / ML consumers |
+| [System overview](docs/diagrams/system-overview.html) | One source, two serve paths, one AI loop: PG serves the React + FastAPI app live, Gold serves BI; RAG documents and Genie NL→SQL answer through the Assistant |
 | [Order lifecycle](docs/diagrams/order-lifecycle.html) | Full order lifecycle across 4 actors: React → FastAPI → PostgreSQL (atomic commit) → Databricks Gold |
 | [System design](docs/diagrams/system-design.html) | Current 3-container deployment vs future scaling proposal (load balancer + replicas + pgBouncer) |
 | [Medallion lakehouse](docs/diagrams/medallion.html) | Bronze → Silver → DQ gate (R1–R9) → Gold tier contracts and promotions |
