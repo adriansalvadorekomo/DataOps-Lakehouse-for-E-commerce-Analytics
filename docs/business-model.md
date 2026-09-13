@@ -133,6 +133,8 @@ sellers 1 ──── ∞ order_items                              │
 
 > **Diagram:** [Order delivery state machine](diagrams/order-lifecycle.html)
 
+![Order lifecycle — full journey across React, FastAPI, PostgreSQL, and Databricks Gold](diagrams/lifecycle-order-img.png)
+
 Source of truth: `orders.delivery_status`.
 
 ```

@@ -146,6 +146,8 @@ The full CI/CD description is in [docs/operations.md](operations.md).
 
 Here is what happens to a single piece of data from the moment it enters the system to the moment it appears in a dashboard.
 
+![Role-scoped data flow — who does what at each pipeline step, from app write to consumer](diagrams/data-flow.png)
+
 **Step 1 — Transaction (PostgreSQL)**
 
 A new order is created via `POST /orders`. FastAPI validates the payload (product exists, seller exists, stock check), writes to `orders` + `order_items` in a single transaction, and returns the created order. PostgreSQL's CHECK constraints verify the `final_price` invariant before the transaction commits.
@@ -191,6 +193,8 @@ mise run dev                         v* tag → GitHub Actions CD
 Local development uses an embedded PostgreSQL (installed by `scripts/dev/db_up.sh`) — no Docker required. The Databricks workspace is always real (Free Edition); there is no local mock.
 
 The Docker Compose stack (`infra/docker-compose.yml`) is used only by the CD smoke test and is not the recommended local development path.
+
+![System design — current 3-container deployment vs future scaling proposal (load balancer, replicas, pgBouncer)](diagrams/system-design-img.png)
 
 ---
 
