@@ -4,6 +4,8 @@ This document explains the data pipeline: what enters the system, how it moves t
 
 ---
 
+> **Diagram:** [Medallion lakehouse — Bronze → Silver → DQ gate → Gold](diagrams/medallion.html)
+
 ## The data source
 
 **File:** `data/amazon-e-commerce/amazon_ecommerce_1M.csv`

@@ -4,6 +4,8 @@ Smart-ERP is two systems with a clear boundary between them: an OLTP platform th
 
 ---
 
+> **Diagrams:** [System data flow](diagrams/data-flow.html) · [Medallion lakehouse](diagrams/medallion.html) · [OLTP schema](diagrams/db-schema.html) · [Order lifecycle](diagrams/order-lifecycle.html)
+
 ## The problem this architecture solves
 
 Running analytics directly on a transactional database is a common trap. As query complexity grows — revenue by city, seller performance trends, return-rate forecasts — the OLTP database slows down, the analytics queries start locking rows, and the application team and analytics team are both fighting for the same resource.

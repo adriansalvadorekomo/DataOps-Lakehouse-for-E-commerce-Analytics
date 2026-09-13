@@ -54,6 +54,19 @@ PostgreSQL owns transactions. Databricks owns analytics. The application never q
 
 ---
 
+## Diagrams
+
+| Diagram | What it shows |
+|---|---|
+| [System overview](docs/diagrams/system-overview.html) | The complete data journey: Source CSV + live writes → PostgreSQL → Databricks medallion → BI / AI / ML consumers |
+| [Order lifecycle](docs/diagrams/order-lifecycle.html) | Full order lifecycle across 4 actors: React → FastAPI → PostgreSQL (atomic commit) → Databricks Gold |
+| [System design](docs/diagrams/system-design.html) | Current 3-container deployment vs future scaling proposal (load balancer + replicas + pgBouncer) |
+| [Medallion lakehouse](docs/diagrams/medallion.html) | Bronze → Silver → DQ gate (R1–R9) → Gold tier contracts and promotions |
+| [Data flow](docs/diagrams/data-flow.html) | Role-scoped pipeline: App → Data Platform → Databricks → Consumers |
+| [Database schema](docs/diagrams/db-schema.html) | Core OLTP tables with column-level FK relationships and constraint details |
+
+---
+
 ## Quick start
 
 ```bash
@@ -126,6 +139,35 @@ mise run tf-apply       # apply to workspace
 
 ---
 
+## Project Roadmap
+
+The project is built as an engineering journey — from understanding the business problem to deploying a production-grade analytical platform. Each phase delivers a concrete, validated layer of the system.
+
+| Phase | Objective | Key Deliverables | Status |
+|---|---|---|---|
+| **1 — Business understanding** | Define the domain: marketplace, INR, sellers, fulfillment lifecycle | Business model doc, KPI definitions (K1–K12), money flow, data contracts | ✅ Completed |
+| **2 — Domain modeling & schema** | Translate the business model into a validated relational schema | 6 core tables, 7 migrations, CHECK constraints, FK graph, invariants enforced at DB layer | ✅ Completed |
+| **3 — Data ingestion** | Load 1M source rows into normalized OLTP tables with acceptance gates | `scripts/seed/ingest.py`, `acceptance.py`, 8 acceptance checks, revenue reconciled to ±₹1,000 | ✅ Completed |
+| **4 — Application layer** | Expose the OLTP core via a typed, tested HTTP API | FastAPI backend (orders, stats, forecast, assistant, documents), Alembic migrations, 36 pytest tests | ✅ Completed |
+| **5 — Frontend dashboard** | Visualise platform data for operators and analysts | React + Vite dashboard: Overview, Orders, Sales, Sellers, Operations, Pipeline, Assistant, Documents | ✅ Completed |
+| **6 — Data platform** | Land raw data into a durable, replayable analytical store | Databricks Free Edition workspace, Unity Catalog, Bronze Delta table (`raw_purchases`), watermark ingestion | ✅ Completed |
+| **7 — Data transformation** | Produce clean, validated analytical entities from raw data | Silver (6 entity tables, enum normalization, grouping logic), DQ gate R1–R9 (0 violations at 1M rows) | ✅ Completed |
+| **8 — Analytical models** | Build KPI-ready Gold tables consumed by BI, ML, and AI | Gold: `fact_sales`, `sales_daily`, `customer_360`, `inventory_kpis` + dims; revenue ₹9.94B reconciled | ✅ Completed |
+| **9 — BI & AI consumption** | Expose analytical value to business consumers | Databricks SQL dashboards (revenue, fulfillment), deterministic AI assistant (`/ai/ask`), RAG documents layer | 🟡 In Progress |
+| **10 — CI/CD & deployment** | Make every change safe, testable, and automatically deliverable | GitHub Actions CI (10 jobs) + CD (3 jobs), GHCR images, compose smoke, Databricks job deploy + Gold validation | ✅ Completed |
+| **11 — Infrastructure as code** | Provision and version all workspace assets declaratively | Terraform: schemas, volumes, job definition; `deploy_job.py` for stateless job updates | ✅ Completed |
+| **12 — ML & forecasting** | Add forward-looking signals on top of the analytical layer | RF + Prophet 30-day revenue forecast (MAPE ~3.4–4.0%), `revenue_forecasts` table, `/stats/forecast` endpoint | 🟡 In Progress |
+| **13 — Observability & operations** | Make the running system transparent and recoverable | Health endpoint, `mise run dataops` loop, structured troubleshooting docs | 🟡 In Progress |
+| **14 — Future scaling** | Design the path from single-server to production-grade availability | System design proposal: load balancer + stateless backend replicas + pgBouncer + PG read replica | 🔵 Draft / Future |
+
+**Phase 9 detail:** AI assistant and document upload/chunking are implemented. The RAG endpoint (`/ai/ask-docs`) is wired but `rag/` contains no production embedding pipeline yet. Genie integration (`/ai/ask-genie`) depends on workspace availability.
+
+**Phase 12 detail:** Revenue forecasting (RF + Prophet) is deployed and serving at `/stats/forecast`. Return propensity (`05_train_return_propensity.py`) and churn risk scoring exist as notebooks but are not yet integrated into the serving layer.
+
+**Phase 13 detail:** The system is operable via `mise run` tasks and documented troubleshooting. Structured metrics (Prometheus/Grafana), alerting, and SLO definitions are not yet implemented.
+
+---
+
 ## Documentation
 
 | Document | What it covers |
@@ -156,7 +198,7 @@ smart-erp/
 ├── frontend/src/      React + Vite: dashboard, orders, analytics pages
 ├── lakehouse/
 │   ├── src/           Bronze, Silver, Gold, Quality Python modules
-│   ├── notebooks/     01–04 Databricks notebooks
+│   ├── notebooks/     01–05 Databricks notebooks
 │   ├── sql/gold/      Gold mart SQL (fact_sales, sales_daily, customer_360, inventory_kpis)
 │   ├── workflows/     smart_erp_job.json (Databricks Workflow definition)
 │   └── tests/         Cluster-free unit tests (stdlib unittest)
@@ -166,7 +208,8 @@ smart-erp/
 ├── bi/                Databricks SQL dashboard exports + query files
 ├── ml/                Revenue forecasting scripts + feasibility analysis
 ├── notebooks/         EDA + modeling Jupyter notebooks
-├── docs/              All documentation
+├── docs/
+│   └── diagrams/      HTML diagrams (system-overview, order-lifecycle, system-design, medallion, data-flow, db-schema)
 └── mise.toml          Task runner (18 tasks)
 ```
 

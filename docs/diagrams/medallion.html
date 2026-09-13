@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart-ERP Medallion Lakehouse</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --paper: #f5f5f5; --paper-2: #ececec; --ink: #2d3142; --muted: #4f5d75;
+      --soft: #7a8399; --rule: rgba(45,49,66,0.12); --accent: #eb6c36;
+      --accent-tint: rgba(235,108,54,0.08); --link: #2e5aa8;
+      --sans: 'Geist', system-ui, sans-serif;
+      --serif: 'Instrument Serif', serif;
+      --mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 3rem 2rem; background: var(--paper); color: var(--ink); font-family: var(--sans);
+    }
+    .frame { width: 100%; max-width: 1200px; }
+    .eyebrow { margin-bottom: 0.5rem; color: var(--muted); font: 500 0.66rem var(--mono); letter-spacing: 0.18em; text-transform: uppercase; }
+    h1 { margin-bottom: 1.5rem; color: var(--ink); font: 400 clamp(1.5rem, 2.4vw + 0.75rem, 2rem)/1.15 var(--serif); letter-spacing: -0.02em; }
+    svg { display: block; width: 100%; min-width: 1040px; }
+    .tier-title { fill: var(--ink); font: 700 13px var(--sans); text-anchor: middle; }
+    .bucket { fill: var(--muted); font: 400 9px var(--mono); text-anchor: middle; }
+    .field-label { fill: var(--ink); font: 600 11px var(--sans); }
+    .field-value { color: var(--muted); font-family: var(--mono); font-size: 9px; line-height: 1.25; }
+    .example-label { fill: var(--soft); font-family: var(--mono); font-size: 8px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+    .example-value { fill: var(--muted); font: 400 9px var(--mono); }
+    .focal-text { fill: var(--accent); }
+    .arc-label { font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-anchor: middle; text-transform: uppercase; }
+    .path-tag { font-family: var(--mono); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+    .path-title { fill: var(--ink); font: 600 11px var(--sans); }
+    .path-sub { fill: var(--muted); font: 400 9px var(--mono); }
+    .dq-label { fill: var(--ink); font: 600 9px var(--sans); text-anchor: middle; }
+    .dq-sub { fill: var(--soft); font: 400 8px var(--mono); text-anchor: middle; }
+  </style>
+</head>
+<body>
+  <main class="frame">
+    <p class="eyebrow">Medallion · Smart-ERP Lakehouse</p>
+    <h1>Bronze → Silver → DQ gate → Gold</h1>
+
+    <!--
+      INPUTS (parametric)
+      tiers: Bronze (outer), Silver (default), DQ Gate (warning — rust), Gold (focal), Archive (cold)
+      promotions: JDBC SNAPSHOT, NORMALIZE+TYPE, R1–R9 CHECK, KPI BUILD
+      paths: DATABRICKS JOB (smart-erp-medallion), LOCAL MIRROR (local_run.py)
+      viewBox: 1040 × 548  (5 tiers, 2 paths)
+    -->
+
+    <svg viewBox="0 0 1040 548" xmlns="http://www.w3.org/2000/svg"
+         role="img" aria-labelledby="medallion-title medallion-desc">
+      <title id="medallion-title">Smart-ERP medallion lakehouse: Bronze to Gold</title>
+      <desc id="medallion-desc">PostgreSQL data flows through Bronze (raw landing), Silver (clean entities), a DQ gate (rules R1–R9), and Gold (KPI models). The Gold tier is the focal analytical surface consumed by BI, ML, and the AI assistant.</desc>
+
+      <defs>
+        <marker id="arrow"        markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+        <marker id="arrow-rust"   markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b85450"/></marker>
+        <clipPath id="clip-bronze">  <rect x="16"  y="80" width="172" height="380" rx="6"/></clipPath>
+        <clipPath id="clip-silver">  <rect x="204" y="80" width="172" height="380" rx="6"/></clipPath>
+        <clipPath id="clip-dq">      <rect x="392" y="80" width="172" height="380" rx="6"/></clipPath>
+        <clipPath id="clip-gold">    <rect x="580" y="80" width="172" height="380" rx="6"/></clipPath>
+        <clipPath id="clip-archive"> <rect x="768" y="80" width="172" height="380" rx="6"/></clipPath>
+      </defs>
+
+      <rect width="1040" height="548" fill="#f5f5f5"/>
+
+      <!-- Promotion arcs — drawn before tier cards so card fills mask the line ends -->
+      <!-- Bronze → Silver: JDBC SNAPSHOT -->
+      <path d="M102 80 C102 0 290 0 290 80" fill="none" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#arrow)"/>
+      <text x="196" y="50" class="arc-label" fill="#4f5d75">JDBC SNAPSHOT</text>
+
+      <!-- Silver → DQ Gate: NORMALIZE + TYPE -->
+      <path d="M290 80 C290 0 478 0 478 80" fill="none" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#arrow)"/>
+      <text x="384" y="50" class="arc-label" fill="#4f5d75">NORMALIZE + TYPE</text>
+
+      <!-- DQ Gate → Gold: R1–R9 CHECK (accent — focal destination) -->
+      <path d="M478 80 C478 0 666 0 666 80" fill="none" stroke="#eb6c36" stroke-width="1.6" marker-end="url(#arrow-accent)"/>
+      <text x="572" y="50" class="arc-label" fill="#eb6c36">R1–R9 CHECK</text>
+
+      <!-- Gold → Archive: COLD LIFECYCLE (dashed) -->
+      <path d="M666 80 C666 0 854 0 854 80" fill="none" stroke="#4f5d75" stroke-width="1.4" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+      <text x="760" y="50" class="arc-label" fill="#4f5d75">LIFECYCLE</text>
+
+      <!-- ─── BRONZE ──────────────────────────────────────────────────────────────── -->
+      <rect x="16" y="80" width="172" height="380" rx="6" fill="#ffffff"/>
+      <rect x="16" y="80" width="172" height="50" fill="rgba(79,93,117,0.10)" clip-path="url(#clip-bronze)"/>
+      <rect x="16" y="80" width="172" height="380" rx="6" fill="none" stroke="#4f5d75"/>
+      <text x="102" y="106" class="tier-title">Bronze</text>
+      <text x="102" y="124" class="bucket">bronze.raw_purchases</text>
+      <text x="32" y="172" class="field-label">Tool</text>
+      <foreignObject x="32" y="178" width="140" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">JDBC snapshot · NiFi</div></foreignObject>
+      <text x="32" y="216" class="field-label">Format</text>
+      <foreignObject x="32" y="222" width="140" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">Delta Lake · append-only</div></foreignObject>
+      <text x="32" y="256" class="field-label">Writer</text>
+      <foreignObject x="32" y="262" width="140" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">bronze_ingest notebook</div></foreignObject>
+      <text x="32" y="340" class="field-label">Invariant</text>
+      <foreignObject x="32" y="346" width="140" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">Rows never deleted. Watermark on purchase_date.</div></foreignObject>
+      <text x="32" y="396" class="example-label">DATASET EXAMPLE</text>
+      <text x="32" y="412" class="example-value">1M order rows · 19 cols</text>
+      <text x="32" y="428" class="example-value">+ _ingest_ts · _source</text>
+
+      <!-- ─── SILVER ──────────────────────────────────────────────────────────────── -->
+      <rect x="204" y="80" width="172" height="380" rx="6" fill="#ffffff"/>
+      <rect x="204" y="80" width="172" height="50" fill="rgba(45,49,66,0.06)" clip-path="url(#clip-silver)"/>
+      <rect x="204" y="80" width="172" height="380" rx="6" fill="none" stroke="#2d3142"/>
+      <text x="290" y="106" class="tier-title">Silver</text>
+      <text x="290" y="124" class="bucket">silver.{6 entities}</text>
+      <text x="220" y="172" class="field-label">Tool</text>
+      <foreignObject x="220" y="178" width="140" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">PySpark · silver_build notebook</div></foreignObject>
+      <text x="220" y="216" class="field-label">Format</text>
+      <foreignObject x="220" y="222" width="140" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">Delta Lake · MERGE</div></foreignObject>
+      <text x="220" y="256" class="field-label">Writer</text>
+      <foreignObject x="220" y="262" width="140" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">Data Engineer</div></foreignObject>
+      <text x="220" y="340" class="field-label">Transforms</text>
+      <foreignObject x="220" y="346" width="140" height="36"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">Enums UPPER · trim · mode(city) · latest price/rating snapshots</div></foreignObject>
+      <text x="220" y="396" class="example-label">DATASET EXAMPLE</text>
+      <text x="220" y="412" class="example-value">orders: IN TRANSIT</text>
+      <text x="220" y="428" class="example-value">customers: home_city</text>
+
+      <!-- ─── DQ GATE ─────────────────────────────────────────────────────────────── -->
+      <!-- rust-red accent: governance/quality concern -->
+      <rect x="392" y="80" width="172" height="380" rx="6" fill="rgba(184,84,80,0.05)"/>
+      <rect x="392" y="80" width="172" height="50" fill="rgba(184,84,80,0.12)" clip-path="url(#clip-dq)"/>
+      <rect x="392" y="80" width="172" height="380" rx="6" fill="none" stroke="#b85450" stroke-width="1.4"/>
+      <text x="478" y="106" class="tier-title">DQ Gate</text>
+      <text x="478" y="124" class="bucket" style="fill:#b85450">dq_gate notebook</text>
+      <text x="408" y="172" class="field-label">Tool</text>
+      <foreignObject x="408" y="178" width="140" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">quality/runner.py · R1–R9</div></foreignObject>
+      <text x="408" y="216" class="field-label">Format</text>
+      <foreignObject x="408" y="222" width="140" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">Pure Python · no Spark needed</div></foreignObject>
+      <text x="408" y="256" class="field-label">On failure</text>
+      <foreignObject x="408" y="262" width="140" height="36"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">Job halts. Gold not touched. Last-good Gold preserved.</div></foreignObject>
+      <text x="408" y="340" class="field-label">On pass</text>
+      <foreignObject x="408" y="346" width="140" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">gold_build proceeds.</div></foreignObject>
+      <text x="408" y="396" class="example-label">RULES</text>
+      <text x="408" y="412" class="example-value" style="fill:#b85450">R1 NULLs · R4 money</text>
+      <text x="408" y="428" class="example-value" style="fill:#b85450">R8 ₹9.94B ± ₹1,000</text>
+
+      <!-- ─── GOLD (focal) ──────────────────────────────────────────────────────────── -->
+      <rect x="580" y="80" width="172" height="380" rx="6" fill="rgba(235,108,54,0.07)"/>
+      <rect x="580" y="80" width="172" height="50" fill="rgba(235,108,54,0.14)" clip-path="url(#clip-gold)"/>
+      <rect x="580" y="80" width="172" height="380" rx="6" fill="none" stroke="#eb6c36" stroke-width="1.6"/>
+      <text x="666" y="106" class="tier-title">Gold</text>
+      <text x="666" y="124" class="bucket focal-text">gold.{7 KPI models}</text>
+      <text x="596" y="172" class="field-label">Tool</text>
+      <foreignObject x="596" y="178" width="140" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">PySpark + Databricks SQL</div></foreignObject>
+      <text x="596" y="216" class="field-label">Format</text>
+      <foreignObject x="596" y="222" width="140" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">Delta Lake · full rebuild</div></foreignObject>
+      <text x="596" y="256" class="field-label">Consumers</text>
+      <foreignObject x="596" y="262" width="140" height="36"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">BI dashboards · ML features · /stats API · AI assistant</div></foreignObject>
+      <text x="596" y="340" class="field-label">Tables</text>
+      <foreignObject x="596" y="346" width="140" height="36"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">fact_sales · sales_daily · customer_360 · inventory_kpis + dims</div></foreignObject>
+      <text x="596" y="396" class="example-label">KPI EXAMPLE</text>
+      <text x="596" y="412" class="example-value focal-text">revenue ₹9,938,876,985</text>
+      <text x="596" y="428" class="example-value focal-text">return rate 11.60%</text>
+
+      <!-- ─── ARCHIVE (cold) ────────────────────────────────────────────────────────── -->
+      <rect x="768" y="80" width="172" height="380" rx="6" fill="#ececec"/>
+      <rect x="768" y="80" width="172" height="50" fill="rgba(79,93,117,0.18)" clip-path="url(#clip-archive)"/>
+      <rect x="768" y="80" width="172" height="380" rx="6" fill="none" stroke="#4f5d75" stroke-dasharray="5,3"/>
+      <text x="854" y="106" class="tier-title">Archive</text>
+      <text x="854" y="124" class="bucket">landing volume</text>
+      <text x="784" y="172" class="field-label">Tool</text>
+      <foreignObject x="784" y="178" width="140" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">UC Volume · object lifecycle</div></foreignObject>
+      <text x="784" y="216" class="field-label">Format</text>
+      <foreignObject x="784" y="222" width="140" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">CSV · immutable</div></foreignObject>
+      <text x="784" y="256" class="field-label">Writer</text>
+      <foreignObject x="784" y="262" width="140" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">mise run dbx-upload</div></foreignObject>
+      <text x="784" y="340" class="field-label">Role</text>
+      <foreignObject x="784" y="346" width="140" height="36"><div xmlns="http://www.w3.org/1999/xhtml" class="field-value">Source for bronze_ingest on Free Edition (no direct JDBC)</div></foreignObject>
+      <text x="784" y="396" class="example-label">DATASET EXAMPLE</text>
+      <text x="784" y="412" class="example-value">amazon_ecommerce_1M.csv</text>
+      <text x="784" y="428" class="example-value">133 MB · git-ignored</text>
+
+      <!-- ─── Write-method paths ────────────────────────────────────────────────────── -->
+      <rect x="16" y="476" width="460" height="56" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.20)"/>
+      <rect x="24" y="482" width="100" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.30)" stroke-width="0.8"/>
+      <text x="74" y="491" class="path-tag" fill="#2d3142" font-size="7" text-anchor="middle">DATABRICKS JOB</text>
+      <text x="132" y="506" class="path-title">smart-erp-medallion (Workflows)</text>
+      <text x="132" y="522" class="path-sub">bronze → silver → dq_gate → gold_build → sql_refresh</text>
+
+      <rect x="492" y="476" width="460" height="56" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.20)"/>
+      <rect x="500" y="482" width="84" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.30)" stroke-width="0.8"/>
+      <text x="542" y="491" class="path-tag" fill="#2d3142" font-size="7" text-anchor="middle">LOCAL MIRROR</text>
+      <text x="600" y="506" class="path-title">python lakehouse/local_run.py</text>
+      <text x="600" y="522" class="path-sub">same logic · no cluster · 100-row sample · CI-verified</text>
+    </svg>
+  </main>
+</body>
+</html>
