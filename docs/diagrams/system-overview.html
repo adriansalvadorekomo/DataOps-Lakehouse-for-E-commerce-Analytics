@@ -23,25 +23,26 @@
 <body>
 <div class="frame">
   <p class="eyebrow">DP Integration · Smart-ERP</p>
-  <h1>System overview — one source, two serve paths</h1>
+  <h1>System overview — platform, app, and AI services</h1>
 
   <!--
     Type: DP integration. One external source (the CSV bootstrap), two sibling
     system zones (OLTP vs Databricks lakehouse — a real boundary: they never
-    write to each other), two serve paths:
-      LIVE  — PostgreSQL serves the app over the top corridor (link-blue);
+    write to each other), and three serve stories:
+      LIVE  — PostgreSQL serves FastAPI over the top corridor (link-blue);
               the app never queries the lakehouse.
       SERVE — Gold serves BI dashboards (accent, serve-flow rule).
-    The order-writing side of the app is told by order-lifecycle.html; the
-    writes are summarized in the app node's sublabel instead of a second box
-    (two boxes for one app would be a duplication anti-pattern).
-    8 nodes · 7 arrows · 1 focal node (Gold) · 2 zones.
+      AI    — the React frontend attaches documents (RAG: PG chunks + FM API
+              synthesis) and asks natural-language questions (Genie Space
+              writes SQL against Gold); both loops return cited answers.
+    The order-writing side of the app is told by order-lifecycle.html.
+    10 nodes · 10 arrows (one bridged crossing) · 1 focal node (Gold).
   -->
 
-  <svg viewBox="0 0 1200 560" xmlns="http://www.w3.org/2000/svg"
+  <svg viewBox="0 0 1200 632" xmlns="http://www.w3.org/2000/svg"
        role="img" aria-labelledby="sysov-title sysov-desc">
-    <title id="sysov-title">Smart-ERP system overview — one source, two serve paths</title>
-    <desc id="sysov-desc">System overview: the Amazon CSV bootstraps PostgreSQL once; the FastAPI app reads and writes PostgreSQL live over a top corridor; PostgreSQL snapshots into the Databricks medallion lakehouse through Bronze, Silver, a DQ gate, and Gold; Gold serves only BI dashboards. One CI/CD and Terraform footer delivers both systems.</desc>
+    <title id="sysov-title">Smart-ERP system overview — platform, app, and AI services</title>
+    <desc id="sysov-desc">System overview: the Amazon CSV bootstraps PostgreSQL once; the React frontend talks to the FastAPI backend, which reads and writes PostgreSQL live over a top corridor; PostgreSQL snapshots into the Databricks medallion (Bronze, Silver, DQ gate, Gold); Gold serves BI dashboards; attached documents are chunked into PostgreSQL and synthesized by the Databricks FM API; natural-language questions go through a Genie Space that writes SQL against Gold. One CI/CD and Terraform footer delivers both systems.</desc>
 
     <defs>
       <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
@@ -52,8 +53,8 @@
       <marker id="arrow-link"   markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#2e5aa8"/></marker>
     </defs>
 
-    <rect width="1200" height="560" fill="#f5f5f5"/>
-    <rect width="1200" height="560" fill="url(#dots)" opacity="0.55"/>
+    <rect width="1200" height="632" fill="#f5f5f5"/>
+    <rect width="1200" height="632" fill="url(#dots)" opacity="0.55"/>
 
     <!-- ══ ZONES (first) ══ -->
     <rect x="240" y="132" width="232" height="240" rx="8"
@@ -87,15 +88,28 @@
     <rect x="843" y="154" width="44" height="12" rx="2" fill="#f5f5f5"/>
     <text x="865" y="163" fill="#eb6c36" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.06em">R1–R9 ✓</text>
 
-    <!-- PG → app: live serve over the top corridor (the app bypasses the lakehouse) -->
-    <path d="M356,152 V64 Q356,56 364,56 H1088 Q1096,56 1096,64 V120" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
-    <rect x="614" y="38" width="220" height="12" rx="2" fill="#f5f5f5"/>
-    <text x="724" y="46" fill="#2e5aa8" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.06em">live SQL — /stats · /orders · /ai · /forecast</text>
+    <!-- PG → FastAPI: live serve over the top corridor (the app bypasses the lakehouse) -->
+    <path d="M356,152 V64 Q356,56 364,56 H984 Q992,56 992,64 V196 Q992,204 1000,204 H1016" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+    <rect x="604" y="38" width="240" height="12" rx="2" fill="#f5f5f5"/>
+    <text x="724" y="46" fill="#2e5aa8" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.06em">live SQL · stats · orders · forecast · uploads</text>
+
+    <!-- Frontend → FastAPI: same-origin /api (attach docs · ask questions) -->
+    <path d="M1096,144 V168" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <rect x="1104" y="148" width="52" height="12" rx="2" fill="#f5f5f5"/>
+    <text x="1108" y="157" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" letter-spacing="0.06em">HTTP /api</text>
+
+    <!-- FastAPI → AI services: NL questions out, cited answers back (request/response) -->
+    <path d="M1016,228 H1012 Q1004,228 1004,236 V292 a8,8 0 0,0 0,16 V404 Q1004,412 996,412 H968" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <rect x="1012" y="344" width="148" height="12" rx="2" fill="#f5f5f5"/>
+    <text x="1018" y="353" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" letter-spacing="0.06em">/ai/ask-genie · FM synthesize</text>
+
+    <!-- AI services → Gold: Genie writes SQL itself against the Gold marts -->
+    <path d="M924,392 V316" fill="none" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+    <rect x="932" y="344" width="40" height="12" rx="2" fill="#f5f5f5"/>
+    <text x="952" y="353" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.04em">NL→SQL</text>
 
     <!-- Gold → BI (serve-flow, accent) -->
-    <path d="M968,252 H1016" fill="none" stroke="#eb6c36" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
-    <rect x="978" y="234" width="28" height="12" rx="2" fill="#f5f5f5"/>
-    <text x="992" y="243" fill="#eb6c36" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.06em">SQL</text>
+    <path d="M968,280 H984 Q992,280 992,288 V292 Q992,300 1000,300 H1016" fill="none" stroke="#eb6c36" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
 
     <!-- ══ NODES ══ -->
 
@@ -117,7 +131,7 @@
     <text x="356" y="194" fill="#2d3142" font-size="9" font-weight="600" font-family="'Geist',sans-serif" text-anchor="middle">6 core tables · 3 service</text>
     <text x="356" y="208" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle">customers · sellers · products</text>
     <text x="356" y="222" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle">inventory · orders · order_items</text>
-    <text x="356" y="236" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle">+ audit · forecasts · docs</text>
+    <text x="356" y="236" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle">+ audit · forecasts · docs (RAG)</text>
     <line x1="276" y1="246" x2="436" y2="246" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
     <text x="356" y="258" fill="#2d3142" font-size="9" font-weight="600" font-family="'Geist',sans-serif" text-anchor="middle">CHECK invariants</text>
     <text x="356" y="274" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle">final_price ±₹5.00</text>
@@ -174,54 +188,73 @@
     <text x="924" y="288" fill="#7a8399" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle">₹9.94B reconciled</text>
     <text x="924" y="300" fill="#7a8399" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle">serves BI only</text>
 
-    <!-- FastAPI + React app -->
-    <rect x="1016" y="120" width="160" height="72" rx="6" fill="#f5f5f5"/>
-    <rect x="1016" y="120" width="160" height="72" rx="6" fill="rgba(79,93,117,0.06)" stroke="#7a8399" stroke-width="1"/>
-    <rect x="1024" y="128" width="56" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.40)" stroke-width="0.8"/>
-    <text x="1052" y="137" fill="#4f5d75" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.08em">FASTAPI</text>
-    <text x="1096" y="156" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist',sans-serif" text-anchor="middle">FastAPI + React</text>
-    <text x="1096" y="172" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle">/stats · /orders · /forecast</text>
-    <text x="1096" y="185" fill="#7a8399" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle">/ai/ask · reads + writes live</text>
+    <!-- React Frontend: Documents page (attach) + Assistant page (ask) -->
+    <rect x="1016" y="72" width="160" height="72" rx="6" fill="#f5f5f5"/>
+    <rect x="1016" y="72" width="160" height="72" rx="6" fill="rgba(79,93,117,0.06)" stroke="#7a8399" stroke-width="1"/>
+    <rect x="1024" y="80" width="44" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.40)" stroke-width="0.8"/>
+    <text x="1046" y="89" fill="#4f5d75" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.08em">REACT</text>
+    <text x="1096" y="110" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist',sans-serif" text-anchor="middle">React Frontend</text>
+    <text x="1096" y="126" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle">attach docs · ask questions</text>
+    <text x="1096" y="140" fill="#7a8399" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle">Documents + Assistant pages</text>
+
+    <!-- FastAPI backend: serves PG live, orchestrates RAG + Genie -->
+    <rect x="1016" y="168" width="160" height="72" rx="6" fill="#f5f5f5"/>
+    <rect x="1016" y="168" width="160" height="72" rx="6" fill="rgba(79,93,117,0.06)" stroke="#7a8399" stroke-width="1"/>
+    <rect x="1024" y="176" width="56" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.40)" stroke-width="0.8"/>
+    <text x="1052" y="185" fill="#4f5d75" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.08em">FASTAPI</text>
+    <text x="1096" y="208" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist',sans-serif" text-anchor="middle">FastAPI backend</text>
+    <text x="1096" y="224" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle">/documents · /ai/*</text>
+    <text x="1096" y="237" fill="#7a8399" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle">RAG retrieve + FM · Genie</text>
 
     <!-- BI Dashboards -->
-    <rect x="1016" y="216" width="160" height="72" rx="6" fill="#f5f5f5"/>
-    <rect x="1016" y="216" width="160" height="72" rx="6" fill="rgba(79,93,117,0.06)" stroke="#7a8399" stroke-width="1"/>
-    <rect x="1024" y="224" width="52" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.40)" stroke-width="0.8"/>
-    <text x="1050" y="233" fill="#4f5d75" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.08em">DBSQL</text>
-    <text x="1096" y="252" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist',sans-serif" text-anchor="middle">BI Dashboards</text>
-    <text x="1096" y="268" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle">Databricks SQL</text>
-    <text x="1096" y="282" fill="#7a8399" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle">gold.fact_sales · 2 dashboards</text>
+    <rect x="1016" y="264" width="160" height="72" rx="6" fill="#f5f5f5"/>
+    <rect x="1016" y="264" width="160" height="72" rx="6" fill="rgba(79,93,117,0.06)" stroke="#7a8399" stroke-width="1"/>
+    <rect x="1024" y="272" width="52" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.40)" stroke-width="0.8"/>
+    <text x="1050" y="281" fill="#4f5d75" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.08em">DBSQL</text>
+    <text x="1096" y="300" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist',sans-serif" text-anchor="middle">BI Dashboards</text>
+    <text x="1096" y="316" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle">Databricks SQL</text>
+    <text x="1096" y="330" fill="#7a8399" font-size="8" font-family="'Geist Mono',monospace" text-anchor="middle">gold.fact_sales · 2 dashboards</text>
+
+    <!-- Databricks AI services (external): Genie Space + FM API -->
+    <rect x="576" y="392" width="392" height="60" rx="6" fill="#f5f5f5"/>
+    <rect x="576" y="392" width="392" height="60" rx="6" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.20)" stroke-width="0.8" stroke-dasharray="3,3"/>
+    <rect x="584" y="400" width="72" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.40)" stroke-width="0.8"/>
+    <text x="620" y="409" fill="#4f5d75" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.08em">DATABRICKS</text>
+    <text x="664" y="424" fill="#2d3142" font-size="8" font-family="'Geist Mono',monospace">Genie Space — NL→SQL over the 4 Gold marts</text>
+    <text x="664" y="440" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace">FM API gpt-oss-120b — RAG synthesis from chunks</text>
 
     <!-- Delivery footer bar -->
-    <rect x="40" y="400" width="1120" height="32" rx="4"
+    <rect x="40" y="472" width="1120" height="32" rx="4"
           fill="rgba(45,49,66,0.05)" stroke="rgba(45,49,66,0.32)" stroke-width="0.8"/>
-    <text x="56" y="420" fill="#2d3142" font-size="9" font-weight="600" font-family="'Geist',sans-serif">Delivery</text>
-    <text x="140" y="420" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace">GitHub Actions — 10 CI jobs · 3 CD jobs (build → smoke → Databricks job deploy) · Terraform — schemas · volume · job definition</text>
+    <text x="56" y="492" fill="#2d3142" font-size="9" font-weight="600" font-family="'Geist',sans-serif">Delivery</text>
+    <text x="140" y="492" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace">GitHub Actions — 10 CI jobs · 3 CD jobs (build → smoke → Databricks job deploy) · Terraform — schemas · volume · job definition</text>
 
     <!-- ══ LEGEND ══ -->
-    <line x1="40" y1="452" x2="1160" y2="452" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
-    <text x="40" y="468" fill="#4f5d75" font-size="7" font-weight="500" font-family="'Geist Mono',monospace" letter-spacing="0.18em">TYPE KEY</text>
-    <rect x="40" y="478" width="16" height="12" rx="2" fill="rgba(79,93,117,0.06)" stroke="#7a8399" stroke-width="1"/>
-    <text x="62" y="487" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">source system</text>
-    <rect x="180" y="478" width="16" height="12" rx="2" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
-    <text x="202" y="487" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">OLTP store</text>
-    <rect x="308" y="478" width="16" height="12" rx="2" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
-    <text x="330" y="487" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">lakehouse tier</text>
-    <rect x="450" y="478" width="16" height="12" rx="2" fill="rgba(184,84,80,0.05)" stroke="#b85450" stroke-width="1.2"/>
-    <text x="472" y="487" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">DQ gate · halts pipeline</text>
-    <rect x="648" y="478" width="16" height="12" rx="2" fill="rgba(235,108,54,0.07)" stroke="#eb6c36" stroke-width="1.2"/>
-    <text x="670" y="487" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">Gold — focal surface</text>
+    <line x1="40" y1="524" x2="1160" y2="524" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+    <text x="40" y="540" fill="#4f5d75" font-size="7" font-weight="500" font-family="'Geist Mono',monospace" letter-spacing="0.18em">TYPE KEY</text>
+    <rect x="40" y="550" width="16" height="12" rx="2" fill="rgba(79,93,117,0.06)" stroke="#7a8399" stroke-width="1"/>
+    <text x="62" y="559" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">source / consumer</text>
+    <rect x="196" y="550" width="16" height="12" rx="2" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+    <text x="218" y="559" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">OLTP store</text>
+    <rect x="318" y="550" width="16" height="12" rx="2" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+    <text x="340" y="559" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">lakehouse tier</text>
+    <rect x="452" y="550" width="16" height="12" rx="2" fill="rgba(184,84,80,0.05)" stroke="#b85450" stroke-width="1.2"/>
+    <text x="474" y="559" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">DQ gate · halts pipeline</text>
+    <rect x="640" y="550" width="16" height="12" rx="2" fill="rgba(235,108,54,0.07)" stroke="#eb6c36" stroke-width="1.2"/>
+    <text x="662" y="559" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">Gold — focal surface</text>
+    <rect x="820" y="550" width="16" height="12" rx="2" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.20)" stroke-width="0.8" stroke-dasharray="3,3"/>
+    <text x="842" y="559" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">external AI service</text>
 
-    <text x="40" y="508" fill="#4f5d75" font-size="7" font-weight="500" font-family="'Geist Mono',monospace" letter-spacing="0.18em">FLOW KEY</text>
-    <line x1="40" y1="518" x2="68" y2="518" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
-    <text x="76" y="521" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">live serve — app reads PG</text>
-    <line x1="280" y1="518" x2="308" y2="518" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
-    <text x="316" y="521" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">data path</text>
-    <line x1="408" y1="518" x2="436" y2="518" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
-    <text x="444" y="521" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">batch · off-peak</text>
-    <line x1="580" y1="518" x2="608" y2="518" stroke="#eb6c36" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
-    <text x="616" y="521" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">DQ-gated promotion · Gold serve</text>
-    <text x="40" y="544" fill="#7a8399" font-size="7" font-family="'Geist Mono',monospace" letter-spacing="0.04em">PostgreSQL owns transactions. Databricks owns analytics. The app never queries the lakehouse.</text>
+    <text x="40" y="582" fill="#4f5d75" font-size="7" font-weight="500" font-family="'Geist Mono',monospace" letter-spacing="0.18em">FLOW KEY</text>
+    <line x1="40" y1="590" x2="68" y2="590" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+    <text x="76" y="593" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">live serve — app reads PG</text>
+    <line x1="280" y1="590" x2="308" y2="590" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <text x="316" y="593" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">data path</text>
+    <line x1="408" y1="590" x2="436" y2="590" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+    <text x="444" y="593" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">batch · off-peak · NL→SQL</text>
+    <line x1="622" y1="590" x2="650" y2="590" stroke="#eb6c36" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+    <text x="658" y="593" fill="#4f5d75" font-size="8" font-family="'Geist',sans-serif">DQ-gated promotion · Gold serve</text>
+    <text x="40" y="616" fill="#7a8399" font-size="7" font-family="'Geist Mono',monospace" letter-spacing="0.04em">PostgreSQL owns transactions. Databricks owns analytics. The app never queries the lakehouse.</text>
   </svg>
 </div>
 </body>
