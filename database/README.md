@@ -6,6 +6,8 @@ PostgreSQL schema for Smart-ERP. **Domain contract:** [docs/business-model.md](.
 
 ## Schema layout
 
+> **Diagram:** [Core OLTP schema — 5 tables with FK relationships](../docs/diagrams/db-schema.html)
+
 | Schema | Purpose |
 |---|---|
 | `raw` | CSV landing — `raw.purchases` (all TEXT, 1:1 with source) |

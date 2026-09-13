@@ -131,6 +131,8 @@ sellers 1 ──── ∞ order_items                              │
 
 ## 3. Order Lifecycle
 
+> **Diagram:** [Order delivery state machine](diagrams/order-lifecycle.html)
+
 Source of truth: `orders.delivery_status`.
 
 ```
