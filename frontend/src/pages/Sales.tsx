@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { Link } from "react-router-dom";
 import { api, formatINR, formatPercent } from "@/lib/api";
+import { CATEGORIES } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -20,18 +21,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ChartSkeleton, EmptyState, PageHeader, StackError, TableSkeleton } from "@/components/PageHeader";
 
 const STALE = 60_000;
 const CAT_COLORS: Record<string, string> = {
   Electronics: "var(--primary)",
-  Home: "#6e6e73",
-  Sports: "#1d8127",
-  Beauty: "#b25e09",
-  Clothing: "#ff3b30",
+  Home: "var(--foreground)",
+  Sports: "var(--success)",
+  Beauty: "var(--muted-foreground)",
+  Clothing: "var(--link)",
 };
 
 function shortMonth(ym: string): string {
-  return new Date(ym + "-01T00:00:00").toLocaleString("en-US", { month: "short" });
+  return new Date(ym + "-01T00:00:00").toLocaleString("en-IN", { month: "short" });
 }
 
 export default function Sales() {
@@ -39,8 +41,8 @@ export default function Sales() {
   const cities = useQuery({ queryKey: ["cities"], queryFn: api.cities, staleTime: STALE });
   const bands = useQuery({ queryKey: ["bands"], queryFn: api.bands, staleTime: STALE });
   const sellers = useQuery({ queryKey: ["sellers8"], queryFn: () => api.sellers(8), staleTime: STALE });
+  const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories, staleTime: STALE });
 
-  // Pivot month × category → one row per month for the multi-line chart.
   const months: string[] = [];
   const byMonth: Record<string, Record<string, number>> = {};
   for (const r of trend.data ?? []) {
@@ -52,27 +54,32 @@ export default function Sales() {
   }
   months.sort();
   const series = months.map((m) => ({ month: m, ...byMonth[m] }));
-  const cats = ["Electronics", "Home", "Sports", "Beauty", "Clothing"];
   const cityTotal = (cities.data ?? []).reduce((s, c) => s + c.revenue, 0);
+  const catTotal = (categories.data ?? []).reduce((s, c) => s + c.revenue, 0);
+  const electronics = (categories.data ?? []).find((c) => c.category === "Electronics");
 
   return (
     <div className="space-y-10">
-      <div>
-        <h1 className="text-[32px] font-semibold tracking-tight">Sales</h1>
-        <p className="mt-1 text-[15px] text-muted-foreground">
-          What drives revenue — and what is changing.
-        </p>
-      </div>
+      <PageHeader title="Revenue" question="What is driving sales, and what is changing?" />
 
-      <Card className="border-border/60 shadow-sm">
+      {electronics && catTotal > 0 && (
+        <p className="text-[15px] text-muted-foreground">
+          Orders are spread evenly across five categories; Electronics still takes{" "}
+          {formatPercent(electronics.revenue / catTotal, 0)} of rupees because ticket size is higher.
+        </p>
+      )}
+
+      <Card>
         <CardHeader>
-          <CardTitle className="text-[15px] font-semibold">Category momentum · monthly revenue</CardTitle>
+          <CardTitle>Category momentum · monthly revenue</CardTitle>
         </CardHeader>
         <CardContent className="h-72">
-          {trend.data ? (
+          {trend.isError ? (
+            <StackError />
+          ) : trend.data ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={series} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.6} />
+                <CartesianGrid vertical={false} stroke="var(--border)" />
                 <XAxis
                   dataKey="month"
                   tickFormatter={shortMonth}
@@ -90,28 +97,29 @@ export default function Sales() {
                 />
                 <Tooltip formatter={(v) => formatINR(Number(v), 0)} labelFormatter={(label) => shortMonth(String(label))} />
                 <Legend wrapperStyle={{ fontSize: 13 }} />
-                {cats.map((c) => (
+                {CATEGORIES.map((c) => (
                   <Line key={c} type="monotone" dataKey={c} stroke={CAT_COLORS[c]} strokeWidth={2} dot={false} />
                 ))}
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-[15px] text-muted-foreground">Loading…</p>
+            <ChartSkeleton />
           )}
         </CardContent>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-border/60 shadow-sm">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-[15px] font-semibold">Revenue by region</CardTitle>
+            <CardTitle>Revenue by metro</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {cities.isError && <StackError />}
             {(cities.data ?? []).map((c) => (
               <div key={c.city} className="space-y-1.5">
                 <div className="flex items-baseline justify-between text-[15px]">
                   <span className="font-medium">{c.city}</span>
-                  <span className="text-muted-foreground tabular-nums">
+                  <span className="font-mono text-muted-foreground tabular-nums">
                     {formatINR(c.revenue, 0)} · {formatPercent(c.revenue / (cityTotal || 1), 0)}
                   </span>
                 </div>
@@ -123,23 +131,25 @@ export default function Sales() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-sm">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-[15px] font-semibold">Discount effectiveness</CardTitle>
+            <CardTitle>Seller-funded discounts</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <p className="text-[13px] text-muted-foreground">Bands of 0–10, 10–30, 30–50 and 50–70 percent off.</p>
+            {bands.isError && <StackError />}
             {(bands.data ?? []).map((b) => {
               const max = Math.max(...(bands.data ?? []).map((x) => x.revenue), 1);
               return (
                 <div key={b.band} className="space-y-1.5">
                   <div className="flex items-baseline justify-between text-[15px]">
                     <span className="font-medium tabular-nums">{b.band}% off</span>
-                    <span className="text-muted-foreground tabular-nums">
-                      {formatINR(b.revenue, 0)} · {b.lines.toLocaleString()} lines
+                    <span className="font-mono text-muted-foreground tabular-nums">
+                      {formatINR(b.revenue, 0)} · {b.lines.toLocaleString("en-IN")} lines
                     </span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
-                    <div className="h-full rounded-full bg-secondary-foreground/70" style={{ width: `${Math.max((b.revenue / max) * 100, 1.5)}%` }} />
+                    <div className="h-full rounded-full bg-foreground/70" style={{ width: `${Math.max((b.revenue / max) * 100, 1.5)}%` }} />
                   </div>
                 </div>
               );
@@ -148,34 +158,44 @@ export default function Sales() {
         </Card>
       </div>
 
-      <Card className="overflow-hidden border-border/60 shadow-sm">
+      <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-[15px] font-semibold">Who drives revenue</CardTitle>
-          <Link to="/sellers" className="text-[15px] text-primary hover:underline">
-            All sellers →
+          <CardTitle>Who drives revenue</CardTitle>
+          <Link to="/sellers" className="text-[15px] hover:underline">
+            All sellers
           </Link>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-xs font-medium uppercase tracking-wide">Seller</TableHead>
-                <TableHead className="text-right text-xs font-medium uppercase tracking-wide">Lines</TableHead>
-                <TableHead className="text-right text-xs font-medium uppercase tracking-wide">Rating</TableHead>
-                <TableHead className="text-right text-xs font-medium uppercase tracking-wide">Revenue</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(sellers.data ?? []).map((s) => (
-                <TableRow key={s.seller_id}>
-                  <TableCell className="font-medium">{s.seller_id}</TableCell>
-                  <TableCell className="text-right tabular-nums">{s.lines.toLocaleString()}</TableCell>
-                  <TableCell className="text-right tabular-nums">{s.avg_rating.toFixed(1)}</TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">{formatINR(s.revenue, 0)}</TableCell>
+          {sellers.isError ? (
+            <div className="p-5">
+              <StackError />
+            </div>
+          ) : sellers.isLoading ? (
+            <TableSkeleton />
+          ) : (sellers.data ?? []).length === 0 ? (
+            <EmptyState title="No seller totals yet" body="Once orders land, this list fills from the live books." />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Seller</TableHead>
+                  <TableHead className="text-right">Lines</TableHead>
+                  <TableHead className="text-right">Rating</TableHead>
+                  <TableHead className="text-right">Revenue</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {(sellers.data ?? []).map((s) => (
+                  <TableRow key={s.seller_id}>
+                    <TableCell className="font-mono font-medium">{s.seller_id}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{s.lines.toLocaleString("en-IN")}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{s.avg_rating.toFixed(1)}</TableCell>
+                    <TableCell className="text-right font-mono font-medium tabular-nums">{formatINR(s.revenue, 0)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

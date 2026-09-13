@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { EmptyState, PageHeader, StackError, TableSkeleton } from "@/components/PageHeader";
 
 interface Doc {
   document_id: number;
@@ -44,6 +45,12 @@ const searchDocs = (query: string, k = 5) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, k }),
   });
+
+const STATUS_LABEL: Record<Doc["status"], string> = {
+  uploaded: "Processing",
+  ready: "Ready",
+  failed: "Failed",
+};
 
 export default function Documents() {
   const qc = useQueryClient();
@@ -86,15 +93,12 @@ export default function Documents() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-[32px] font-semibold tracking-tight">Documents</h1>
-        <p className="mt-1 text-[15px] text-muted-foreground">
-          Attach business documents (PDF, Markdown, text, CSV — 20 MB max). They are
-          parsed, chunked and embedded for grounded insights; retrieval below previews matches.
-        </p>
-      </div>
+      <PageHeader
+        title="Briefs"
+        question="Attach PDF, Markdown, text or CSV (20 MB max). Ask uses only these files when you pick the Briefs tab."
+      />
 
-      <Card className="border-border/60 shadow-sm">
+      <Card>
         <CardContent className="flex flex-wrap items-center gap-3 pt-6">
           <Input
             type="file"
@@ -103,71 +107,73 @@ export default function Documents() {
             className="max-w-sm"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
-          <Button
-            className="rounded-full"
-            disabled={!file || upload.isPending}
-            onClick={() => file && upload.mutate(file)}
-          >
-            {upload.isPending ? "Uploading…" : "Attach"}
+          <Button disabled={!file || upload.isPending} onClick={() => file && upload.mutate(file)}>
+            {upload.isPending ? "Attaching…" : "Attach"}
           </Button>
           {error && <p className="w-full text-[15px] text-destructive">{error}</p>}
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-border/60 shadow-sm">
+      <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle className="text-[15px] font-semibold">Attached</CardTitle>
+          <CardTitle>Attached</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-xs font-medium uppercase tracking-wide">File</TableHead>
-                <TableHead className="text-right text-xs font-medium uppercase tracking-wide">Size</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wide">Status</TableHead>
-                <TableHead className="text-right text-xs font-medium uppercase tracking-wide">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(docs.data ?? []).map((d) => (
-                <TableRow key={d.document_id}>
-                  <TableCell>
-                    <span className="inline-flex items-center gap-2 font-medium">
-                      <FileText size={15} className="text-muted-foreground" />
-                      {d.filename}
-                    </span>
-                    {d.error && <p className="mt-0.5 text-xs text-destructive">{d.error}</p>}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {(d.size_bytes / 1024).toFixed(1)} KB
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={d.status === "ready" ? "default" : d.status === "failed" ? "destructive" : "secondary"}>
-                      {d.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" aria-label={`Delete ${d.filename}`} onClick={() => remove.mutate(d.document_id)}>
-                      <Trash2 size={15} />
-                    </Button>
-                  </TableCell>
+          {docs.isError ? (
+            <div className="p-5">
+              <StackError />
+            </div>
+          ) : docs.isLoading ? (
+            <TableSkeleton cols={4} />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>File</TableHead>
+                  <TableHead className="text-right">Size</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-              {docs.data?.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
-                    Nothing attached yet.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {(docs.data ?? []).map((d) => (
+                  <TableRow key={d.document_id}>
+                    <TableCell>
+                      <span className="inline-flex items-center gap-2 font-medium">
+                        <FileText size={15} className="text-muted-foreground" />
+                        {d.filename}
+                      </span>
+                      {d.error && <p className="mt-0.5 text-xs text-destructive">{d.error}</p>}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{(d.size_bytes / 1024).toFixed(1)} KB</TableCell>
+                    <TableCell>
+                      <Badge variant={d.status === "ready" ? "default" : d.status === "failed" ? "destructive" : "secondary"}>
+                        {STATUS_LABEL[d.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" aria-label={`Delete ${d.filename}`} onClick={() => remove.mutate(d.document_id)}>
+                        <Trash2 size={15} />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {docs.data?.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="p-0">
+                      <EmptyState title="Nothing attached yet" body="Attach a brief to ground Ask answers in your own documents." />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
-      <Card className="border-border/60 shadow-sm">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-[15px] font-semibold">Try retrieval</CardTitle>
+          <CardTitle>Preview matches</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <form className="flex gap-2" onSubmit={search}>
@@ -177,17 +183,24 @@ export default function Documents() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
-            <Button type="submit" className="rounded-xl">Search</Button>
+            <Button type="submit">Search</Button>
           </form>
           {hits && (
             <div className="space-y-3">
               {hits.length === 0 && <p className="text-[15px] text-muted-foreground">No matches.</p>}
               {hits.map((h, i) => (
-                <div key={i} className="rounded-xl border border-border/60 p-4">
-                  <p className="text-[13px] font-medium text-muted-foreground tabular-nums">
-                    {h.document} · chunk {h.chunk_index} · score {h.score.toFixed(3)}
+                <div key={i} className="rounded-md border border-border p-4">
+                  <p className="text-[13px] font-medium text-muted-foreground">
+                    {h.document} · passage {h.chunk_index + 1}
                   </p>
-                  <p className="mt-1 text-[15px] leading-relaxed">{h.content.slice(0, 400)}{h.content.length > 400 ? "…" : ""}</p>
+                  <details className="mt-1">
+                    <summary className="cursor-pointer text-[13px] text-muted-foreground">How this was matched</summary>
+                    <p className="mt-1 font-mono text-xs text-muted-foreground">Relevance {h.score.toFixed(3)}</p>
+                  </details>
+                  <p className="mt-1 text-[15px] leading-relaxed">
+                    {h.content.slice(0, 400)}
+                    {h.content.length > 400 ? "…" : ""}
+                  </p>
                 </div>
               ))}
             </div>

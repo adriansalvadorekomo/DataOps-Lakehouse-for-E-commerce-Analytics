@@ -6,6 +6,9 @@ dist/
 wheels/
 *.egg-info
 
+# JavaScript (root font deps + app)
+node_modules/
+
 # Virtual environments
 .venv
 

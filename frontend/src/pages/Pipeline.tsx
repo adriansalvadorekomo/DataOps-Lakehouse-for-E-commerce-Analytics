@@ -3,17 +3,9 @@ import { ArrowRight, CheckCircle2, XCircle } from "lucide-react";
 import { Fragment } from "react";
 import { Link } from "react-router-dom";
 import { api, formatINR } from "@/lib/api";
+import { BACKFILL, WORKSPACE_URL } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-/** Last full backfill validated on the workspace (docs/databricks-free-edition.md).
- * Static by design — the browser never holds workspace credentials. */
-const BACKFILL = {
-  at: "2026-09-11",
-  bronze_rows: 1_000_000,
-  revenue: 9938876984.9,
-  silver: ["customers", "sellers", "products", "inventory", "orders", "order_items"],
-  gold: ["fact_sales", "sales_daily", "customer_360", "inventory_kpis"],
-};
+import { PageHeader, StackError } from "@/components/PageHeader";
 
 function Stage({
   index,
@@ -25,10 +17,10 @@ function Stage({
   children: React.ReactNode;
 }) {
   return (
-    <Card className="min-w-0 flex-1 border-border/60 shadow-sm">
+    <Card className="min-w-0 flex-1">
       <CardHeader className="pb-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{index}</p>
-        <CardTitle className="text-[17px] font-semibold tracking-tight">{name}</CardTitle>
+        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{index}</p>
+        <CardTitle className="text-[17px] tracking-tight">{name}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-1 text-[15px]">{children}</CardContent>
     </Card>
@@ -36,7 +28,7 @@ function Stage({
 }
 
 function Num({ children }: { children: React.ReactNode }) {
-  return <span className="font-semibold tabular-nums">{children}</span>;
+  return <span className="font-mono font-medium tabular-nums">{children}</span>;
 }
 
 export default function Pipeline() {
@@ -46,20 +38,28 @@ export default function Pipeline() {
   const o = overview.data;
 
   const stages = [
-    <Stage key="oltp" index="Source" name="PostgreSQL">
-      <p><Num>{o ? o.total_orders.toLocaleString() : "—"}</Num> orders</p>
-      <p className="text-muted-foreground">6 tables · live</p>
+    <Stage key="oltp" index="Live" name="Incoming orders">
+      <p>
+        <Num>{o ? o.total_orders.toLocaleString("en-IN") : "—"}</Num> orders
+      </p>
+      <p className="text-muted-foreground">Marketplace books · live</p>
     </Stage>,
-    <Stage key="bronze" index="Lakehouse" name="Bronze">
-      <p><Num>{BACKFILL.bronze_rows.toLocaleString()}</Num> rows</p>
-      <p className="text-muted-foreground">landing CSV · {BACKFILL.at}</p>
+    <Stage key="bronze" index="Databricks" name="Landing">
+      <p>
+        <Num>{BACKFILL.bronze_rows.toLocaleString("en-IN")}</Num> rows
+      </p>
+      <p className="text-muted-foreground">Snapshot · {BACKFILL.at}</p>
     </Stage>,
-    <Stage key="silver" index="Lakehouse" name="Silver">
-      <p><Num>{BACKFILL.silver.length}</Num> entities</p>
-      <p className="text-muted-foreground">cleaned · typed</p>
+    <Stage key="silver" index="Databricks" name="Cleaned records">
+      <p>
+        <Num>{BACKFILL.silver.length}</Num> entities
+      </p>
+      <p className="text-muted-foreground">Typed marketplace tables</p>
     </Stage>,
-    <Stage key="dq" index="Gate" name="DQ R1–R7">
-      {dq.data ? (
+    <Stage key="dq" index="Gate" name="Integrity checks">
+      {dq.isError ? (
+        <StackError />
+      ) : dq.data ? (
         bad.length === 0 ? (
           <p className="inline-flex items-center gap-1.5 text-[15px] font-medium">
             <CheckCircle2 size={16} className="text-[var(--success)]" /> Passing
@@ -72,52 +72,57 @@ export default function Pipeline() {
       ) : (
         <p className="text-muted-foreground">Checking…</p>
       )}
-      <p className="text-muted-foreground">over live OLTP</p>
+      <p className="text-muted-foreground">over the live books</p>
     </Stage>,
-    <Stage key="gold" index="Lakehouse" name="Gold">
-      <p><Num>{BACKFILL.gold.length}</Num> marts</p>
+    <Stage key="gold" index="Databricks" name="Trusted numbers">
+      <p>
+        <Num>{BACKFILL.gold.length}</Num> published sets
+      </p>
       <p className="text-muted-foreground">{o ? formatINR(o.revenue, 0) : "—"} revenue</p>
     </Stage>,
   ];
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-[32px] font-semibold tracking-tight">Pipeline</h1>
-        <p className="mt-1 text-[15px] text-muted-foreground">
-          Is data flowing — source to Bronze to Silver through the gate to Gold.
-        </p>
-      </div>
+      <PageHeader title="How numbers are trusted" question="Orders become published marketplace figures on Databricks — then this console reads the live books." />
+
+      <p className="text-[15px] text-muted-foreground">
+        Landing, cleaned records and trusted numbers below are a{" "}
+        <strong className="font-medium text-foreground">validation snapshot from {BACKFILL.at}</strong>, not a live
+        workspace job. Integrity checks run against the live books.{" "}
+        <a href={WORKSPACE_URL} target="_blank" rel="noreferrer" className="hover:underline">
+          Open the Databricks workspace
+        </a>
+        .
+      </p>
 
       <div className="flex flex-col gap-2 xl:flex-row xl:items-stretch">
         {stages.map((s, i) => (
           <Fragment key={i}>
-            {i > 0 && (
-              <ArrowRight size={16} className="mx-auto shrink-0 self-center text-muted-foreground xl:mx-0" />
-            )}
+            {i > 0 && <ArrowRight size={16} className="mx-auto shrink-0 self-center text-muted-foreground xl:mx-0" />}
             {s}
           </Fragment>
         ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-border/60 shadow-sm">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-[15px] font-semibold">Silver entities</CardTitle>
+            <CardTitle>Cleaned marketplace tables</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-[15px] text-muted-foreground">{BACKFILL.silver.join(" · ")}</p>
           </CardContent>
         </Card>
-        <Card className="border-border/60 shadow-sm">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-[15px] font-semibold">Gold marts</CardTitle>
+            <CardTitle>Published marketplace numbers</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-[15px] text-muted-foreground">{BACKFILL.gold.join(" · ")}</p>
             <p className="mt-3 text-[15px]">
-              <Link to="/operations" className="text-primary hover:underline">
-                Rule-level gate status →
+              <Link to="/operations" className="hover:underline">
+                Check-level status
               </Link>
             </p>
           </CardContent>

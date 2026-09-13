@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { SendHorizontal, Sparkles } from "lucide-react";
+import { SendHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/PageHeader";
+import { cn } from "@/lib/utils";
 
 interface Source {
   endpoint: string;
@@ -24,28 +26,22 @@ interface AskResult {
 type Mode = "data" | "docs" | "genie";
 
 const MODES: { id: Mode; label: string; hint: string }[] = [
-  { id: "data", label: "Data", hint: "Computed answers over OLTP + forecasts" },
-  { id: "docs", label: "Documents", hint: "Grounded in your attached documents" },
-  { id: "genie", label: "Genie", hint: "Databricks SQL over Gold (needs Space)" },
+  { id: "data", label: "Live books", hint: "Answers computed from committed orders and the latest outlook." },
+  { id: "docs", label: "Briefs", hint: "Answers grounded only in documents you attached." },
+  { id: "genie", label: "Databricks", hint: "Questions answered from published marketplace numbers in the workspace." },
 ];
 
 const EXAMPLES: Record<Mode, string[]> = {
   data: [
     "What is total revenue?",
     "Top 5 sellers?",
-    "Which products need reordering?",
-    "Forecast revenue next month",
-    "Is data quality green?",
-    "Revenue by region",
+    "Which products need restocking?",
+    "Outlook for revenue next month",
+    "Are the books clean?",
+    "Revenue by metro",
   ],
-  docs: [
-    "What drove growth in Q1?",
-    "Summarize the attached reports",
-  ],
-  genie: [
-    "Total revenue by month",
-    "Return rate by category",
-  ],
+  docs: ["What drove growth in Q1?", "Summarize the attached reports"],
+  genie: ["Total revenue by month", "Return rate by category"],
 };
 
 async function ask(mode: Mode, question: string): Promise<AskResult> {
@@ -90,26 +86,20 @@ export default function Assistant() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="inline-flex items-center gap-2 text-[32px] font-semibold tracking-tight">
-          <Sparkles size={26} strokeWidth={1.75} /> Ask
-        </h1>
-        <p className="mt-1 text-[15px] text-muted-foreground">
-          {MODES.find((m) => m.id === mode)?.hint} — every reply cites its sources. No guessing.
-        </p>
-      </div>
+      <PageHeader title="Ask" question={MODES.find((m) => m.id === mode)?.hint ?? ""} />
 
-      <div className="inline-flex rounded-full bg-secondary p-1">
+      <div className="inline-flex rounded-md bg-secondary p-1" role="tablist" aria-label="Answer source">
         {MODES.map((m) => (
           <button
             key={m.id}
             type="button"
+            role="tab"
+            aria-selected={mode === m.id}
             onClick={() => switchMode(m.id)}
-            className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-all ${
-              mode === m.id
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+            className={cn(
+              "rounded-md px-3.5 py-1.5 text-[13px] font-medium transition-colors",
+              mode === m.id ? "bg-card text-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
           >
             {m.label}
           </button>
@@ -129,7 +119,7 @@ export default function Assistant() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <Button type="submit" className="rounded-xl" disabled={busy} aria-label="Ask">
+        <Button type="submit" disabled={busy} aria-label="Ask">
           <SendHorizontal size={16} />
         </Button>
       </form>
@@ -153,40 +143,46 @@ export default function Assistant() {
       {error && <p className="text-[15px] text-destructive">{error}</p>}
 
       {result && (
-        <Card className="border-border/60 shadow-sm">
+        <Card>
           <CardContent className="space-y-4 pt-6">
             <p className="text-[17px] leading-relaxed">{result.answer}</p>
-            {result.sql && (
-              <pre className="overflow-x-auto rounded-xl bg-secondary p-3 font-mono text-xs text-secondary-foreground">
-                {result.sql}
-              </pre>
-            )}
             {result.rows && result.rows.length > 0 && (
-              <p className="text-[13px] tabular-nums text-muted-foreground">
-                {result.rows.length} row(s), first:{" "}
-                {Object.entries(result.rows[0]).slice(0, 3).map(([k, v]) => `${k}=${v}`).join(", ")}
+              <p className="font-mono text-[13px] tabular-nums text-muted-foreground">
+                {result.rows.length} row(s) returned
               </p>
             )}
-            <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
-              <span className="text-[13px] text-muted-foreground">Sources:</span>
-              {result.sources.length > 0 ? (
-                result.sources.map((s, i) => (
-                  <code key={`${s.endpoint}-${i}`} className="rounded-md bg-secondary px-2 py-1 font-mono text-xs text-secondary-foreground">
-                    {s.document ? `${s.document}#${s.chunk_index} (${s.score})` : s.endpoint}
-                  </code>
-                ))
-              ) : (
-                <span className="text-[13px] text-muted-foreground">none — try an example above</span>
-              )}
-            </div>
+            <details className="border-t border-border pt-3">
+              <summary className="cursor-pointer text-[13px] text-muted-foreground">How this was answered</summary>
+              <div className="mt-3 space-y-3">
+                {result.sql && (
+                  <pre className="overflow-x-auto rounded-md bg-secondary p-3 font-mono text-xs text-secondary-foreground">
+                    {result.sql}
+                  </pre>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[13px] text-muted-foreground">Sources</span>
+                  {result.sources.length > 0 ? (
+                    result.sources.map((s, i) => (
+                      <span key={`${s.endpoint}-${i}`} className="rounded-md bg-secondary px-2 py-1 font-mono text-xs">
+                        {s.document
+                          ? `${s.document}${s.chunk_index != null ? ` · passage ${s.chunk_index + 1}` : ""}`
+                          : s.endpoint}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-[13px] text-muted-foreground">none — try an example above</span>
+                  )}
+                </div>
+              </div>
+            </details>
           </CardContent>
         </Card>
       )}
 
       <p className="text-[13px] text-muted-foreground">
-        Grounded in OLTP + batch forecasts today; governed Gold next.{" "}
-        <Link to="/pipeline" className="text-primary hover:underline">
-          Pipeline status →
+        Live books today; published Databricks numbers when you pick that tab.{" "}
+        <Link to="/pipeline" className="hover:underline">
+          How numbers are trusted
         </Link>
       </p>
     </div>
