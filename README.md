@@ -58,6 +58,26 @@ PostgreSQL owns transactions. Databricks owns analytics. The application never q
 
 ---
 
+## Requirements
+
+| Tool | Version | Manages | Install |
+|---|---|---|---|
+| Python | 3.12 (see `.python-version`) | runtime | [python.org](https://www.python.org/downloads/) or `mise use python@3.12` |
+| [uv](https://docs.astral.sh/uv/) | latest | Python deps + venv (from `pyproject.toml` + `uv.lock`) | `curl -LsSf astral.sh/uv/install.sh \| sh` |
+| Node.js + npm | 22 | frontend dashboard | [nodejs.org](https://nodejs.org/) or `mise use node@22` |
+| [mise](https://mise.jdx.dev/) | latest | task runner — every operation below is a `mise run <task>` | `curl https://mise.run \| sh` |
+| Git | any recent | clone | — |
+
+No system Postgres or Docker needed for local work — `mise run dev` bootstraps an embedded PostgreSQL (`pgserver`) automatically. You only need more when you go further:
+
+- **Dataset** (only for `mise run seed`): the 133 MB CSV at `data/amazon-e-commerce/amazon_ecommerce_1M.csv` — git-ignored, never committed (see [Dataset](#dataset)).
+- **Databricks credentials** (only for `dbx-*` tasks): `DATABRICKS_HOST` + `DATABRICKS_TOKEN` in `.env` — see [docs/operations.md](docs/operations.md) and [docs/databricks-free-edition.md](docs/databricks-free-edition.md).
+- **Docker** (only for the CD compose-smoke gate): not used by local development.
+
+> Single source of truth: `uv sync --frozen` installs exactly what CI and the Docker images use. There is intentionally no `requirements.txt` — it would be a second dependency list with no freshness gate, left to drift.
+
+---
+
 ## Quick start
 
 ```bash
