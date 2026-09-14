@@ -20,23 +20,23 @@ This project demonstrates that separation at working scale: 1M orders, ₹9.94B 
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  APPLICATION LAYER                                                        │
-│                                                                           │
-│  React dashboard ──► FastAPI backend ──► PostgreSQL (OLTP)               │
-│                                                │                          │
-│  What happens here: orders are created, status │ transitions, stock       │
-│  decrements. All constraints enforced by the DB│CHECK + FK guards.        │
-└──────────────────────────────────┬────────────┘                          │
-                                   │ JDBC snapshot (off-peak)               │
-                                   │ one-way: data flows out, never in      │
-                                   ▼                                        │
+│ APPLICATION LAYER                                                       │
+│                                                                         │
+│ React dashboard ──► FastAPI backend ──► PostgreSQL (OLTP)               │
+│                                                                         │
+│ What happens here: orders are created, status transitions,              │
+│ stock decrements. All constraints enforced by DB CHECK + FK guards.     │
+└─────────────────────────────────────────────────────────────────────────┘
+                                     │ JDBC snapshot (off-peak)
+                                     │ one-way: data flows out, never in
+                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  ANALYTICAL PLATFORM (Databricks)                                         │
-│                                                                           │
-│  Bronze ──► Silver ──► DQ gate ──► Gold ──► BI / ML / AI                │
-│                                                                           │
-│  What happens here: raw data is preserved, cleaned, validated, and       │
-│  shaped into KPI-ready models. Nobody writes OLTP transactions here.     │
+│ ANALYTICAL PLATFORM (Databricks)                                        │
+│                                                                         │
+│ Bronze ──► Silver ──► DQ gate ──► Gold ──► BI / ML / AI                 │
+│                                                                         │
+│ What happens here: raw data is preserved, cleaned, validated,           │
+│ shaped into KPI-ready models — no OLTP writes happen here.              │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
