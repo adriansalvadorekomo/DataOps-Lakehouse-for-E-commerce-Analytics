@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api, formatINR, formatPercent } from "@/lib/api";
+import { dqDetail, dqTitle } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -11,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { EmptyState, PageHeader, StackError, TableSkeleton } from "@/components/PageHeader";
 
 const STALE = 60_000;
 
@@ -22,34 +24,37 @@ export default function Operations() {
 
   return (
     <div className="space-y-10">
-      <div>
-        <h1 className="text-[32px] font-semibold tracking-tight">Operations</h1>
-        <p className="mt-1 text-[15px] text-muted-foreground">
-          What needs action — fulfillment, inventory, data quality.
-        </p>
-      </div>
+      <PageHeader title="Needs action" question="What should fulfillment and inventory look at today?" />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-border/60 shadow-sm">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-[15px] font-semibold">Shipping performance by region</CardTitle>
+            <CardTitle>Shipping by metro</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {(cities.data ?? []).map((c) => (
-              <div key={c.city} className="flex items-baseline justify-between gap-4 text-[15px]">
-                <span className="font-medium">{c.city}</span>
-                <span className="text-muted-foreground tabular-nums">
-                  {formatPercent(c.delayed_rate, 0)} delayed · {formatPercent(c.return_rate, 0)} returned
-                </span>
-              </div>
-            ))}
+            {cities.isError ? (
+              <StackError message="Couldn't load metro shipping." retry={() => cities.refetch()} />
+            ) : cities.isLoading ? (
+              <TableSkeleton rows={5} cols={2} />
+            ) : (cities.data ?? []).length === 0 ? (
+              <EmptyState title="No metro shipping yet" body="Delay and return rates appear after completed orders are recorded." />
+            ) : (
+              (cities.data ?? []).map((c) => (
+                <div key={c.city} className="flex items-baseline justify-between gap-4 text-[15px]">
+                  <span className="font-medium">{c.city}</span>
+                  <span className="font-mono text-muted-foreground tabular-nums">
+                    {formatPercent(c.delayed_rate, 0)} delayed · {formatPercent(c.return_rate, 0)} returned
+                  </span>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-sm">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-[15px] font-semibold">DQ gate over live data</CardTitle>
-            {dq.data &&
+            <CardTitle>Integrity of the live books</CardTitle>
+            {dq.data && dq.data.length > 0 &&
               (bad.length === 0 ? (
                 <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--success)]">
                   <CheckCircle2 size={14} /> Passing
@@ -61,62 +66,91 @@ export default function Operations() {
               ))}
           </CardHeader>
           <CardContent className="p-0">
-            <Table>
-              <TableBody>
-                {(dq.data ?? []).map((c) => (
-                  <TableRow key={c.rule}>
-                    <TableCell className="font-medium">{c.rule}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {c.violations === 0 ? (
-                        <span className="inline-flex items-center gap-1 text-[var(--success)]">
-                          <CheckCircle2 size={14} /> 0
-                        </span>
-                      ) : (
-                        <span className="font-semibold text-destructive">{c.violations.toLocaleString()}</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            {dq.isError ? (
+              <div className="p-5">
+                <StackError message="Couldn't load integrity checks." retry={() => dq.refetch()} />
+              </div>
+            ) : dq.isLoading ? (
+              <TableSkeleton cols={2} />
+            ) : (dq.data ?? []).length === 0 ? (
+              <EmptyState title="No integrity checks returned" body="Passing requires a non-empty set of checks with zero violations." />
+            ) : (
+              <>
+                <p className="px-4 pt-4 text-[13px] text-muted-foreground">These checks mirror R1–R7 over PostgreSQL and the live marketplace books. They are not a live Databricks workflow result.</p>
+                <Table>
+                <TableBody>
+                  {(dq.data ?? []).map((c) => (
+                    <TableRow key={c.rule}>
+                      <TableCell>
+                        <p className="font-medium">{dqTitle(c.rule)}</p>
+                        <details className="mt-0.5">
+                          <summary className="cursor-pointer text-[13px] text-muted-foreground">Why this matters</summary>
+                          <p className="mt-1 text-[13px] text-muted-foreground">
+                            {dqDetail(c.rule)} <span className="font-mono">({c.rule})</span>
+                          </p>
+                        </details>
+                      </TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">
+                        {c.violations === 0 ? (
+                          <span className="inline-flex items-center gap-1 text-[var(--success)]">
+                            <CheckCircle2 size={14} /> 0
+                          </span>
+                        ) : (
+                          <span className="font-medium text-destructive">{c.violations.toLocaleString("en-IN")}</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  </TableBody>
+                </Table>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      <Card className="overflow-hidden border-border/60 shadow-sm">
+      <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-[15px] font-semibold">
-            Reorder now · {(stock.data ?? []).length > 0 ? "lowest stock first" : ""}
-          </CardTitle>
-          <Link to="/orders" className="text-[15px] text-primary hover:underline">
-            Orders →
+          <CardTitle>Restock first · lowest stock</CardTitle>
+          <Link to="/orders" className="text-[15px] hover:underline">
+            Orders
           </Link>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-xs font-medium uppercase tracking-wide">Product</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wide">Category</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wide">Brand</TableHead>
-                <TableHead className="text-right text-xs font-medium uppercase tracking-wide">Price</TableHead>
-                <TableHead className="text-right text-xs font-medium uppercase tracking-wide">Stock</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(stock.data ?? []).map((p) => (
-                <TableRow key={p.product_id}>
-                  <TableCell className="font-medium">{p.product_id}</TableCell>
-                  <TableCell className="text-muted-foreground">{p.category}</TableCell>
-                  <TableCell className="text-muted-foreground">{p.brand}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatINR(p.current_price, 0)}</TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums text-destructive">
-                    {p.latest_stock}
-                  </TableCell>
+          {stock.isError ? (
+            <div className="p-5">
+              <StackError message="Couldn't load low-stock products." retry={() => stock.refetch()} />
+            </div>
+          ) : stock.isLoading ? (
+            <TableSkeleton />
+          ) : (stock.data ?? []).length === 0 ? (
+            <EmptyState title="Nothing below 20 units" body="When stock is thin, products appear here for reorder." />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Product</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Brand</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead className="text-right">Stock</TableHead>
+                  <TableHead className="text-right">Snapshot</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {(stock.data ?? []).map((p) => (
+                  <TableRow key={p.product_id}>
+                    <TableCell className="font-mono font-medium">{p.product_id}</TableCell>
+                    <TableCell className="text-muted-foreground">{p.category}</TableCell>
+                    <TableCell className="text-muted-foreground">{p.brand}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{formatINR(p.current_price, 0)}</TableCell>
+                    <TableCell className="text-right font-mono font-medium tabular-nums text-destructive">{p.latest_stock}</TableCell>
+                    <TableCell className="text-right font-mono text-muted-foreground tabular-nums">{p.latest_snapshot_date}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

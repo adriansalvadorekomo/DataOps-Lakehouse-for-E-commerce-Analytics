@@ -1,120 +1,126 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { SendHorizontal, Sparkles } from "lucide-react";
+import { SendHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/PageHeader";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { api, type AskMode, type AskResult } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
-interface Source {
-  endpoint: string;
-  params: Record<string, unknown>;
-  document?: string | null;
-  chunk_index?: number | null;
-  score?: number | null;
-}
-
-interface AskResult {
-  answer: string;
-  intent: string;
-  sources: Source[];
-  sql?: string;
-  rows?: Record<string, unknown>[];
-}
-
-type Mode = "data" | "docs" | "genie";
-
-const MODES: { id: Mode; label: string; hint: string }[] = [
-  { id: "data", label: "Data", hint: "Computed answers over OLTP + forecasts" },
-  { id: "docs", label: "Documents", hint: "Grounded in your attached documents" },
-  { id: "genie", label: "Genie", hint: "Databricks SQL over Gold (needs Space)" },
+const MODES: { id: AskMode; label: string; hint: string; trust: string }[] = [
+  {
+    id: "data",
+    label: "Live books",
+    hint: "Answers computed from committed orders and the latest outlook.",
+    trust: "Live books is deterministic and uses no LLM.",
+  },
+  {
+    id: "docs",
+    label: "Briefs",
+    hint: "Answers grounded only in documents you attached.",
+    trust: "Briefs is grounded only in attached files and says it does not know when there is no grounding.",
+  },
+  {
+    id: "genie",
+    label: "Databricks",
+    hint: "Questions answered from published marketplace numbers in the workspace.",
+    trust: "Databricks Genie answers from published marketplace numbers.",
+  },
 ];
 
-const EXAMPLES: Record<Mode, string[]> = {
+const EXAMPLES: Record<AskMode, string[]> = {
   data: [
     "What is total revenue?",
     "Top 5 sellers?",
-    "Which products need reordering?",
-    "Forecast revenue next month",
-    "Is data quality green?",
-    "Revenue by region",
+    "Which products need restocking?",
+    "Outlook for revenue next month",
+    "Are the books clean?",
+    "Revenue by metro",
   ],
-  docs: [
-    "What drove growth in Q1?",
-    "Summarize the attached reports",
-  ],
-  genie: [
-    "Total revenue by month",
-    "Return rate by category",
-  ],
+  docs: ["What drove growth in Q1?", "Summarize the attached reports"],
+  genie: ["Total revenue by month", "Return rate by category"],
 };
 
-async function ask(mode: Mode, question: string): Promise<AskResult> {
-  const path = mode === "data" ? "/api/ai/ask" : mode === "docs" ? "/api/ai/ask-docs" : "/api/ai/ask-genie";
-  const res = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question }),
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(typeof body?.detail === "string" ? body.detail : "Ask failed");
-  return body as AskResult;
+function displayValue(value: unknown): string {
+  if (value == null) return "—";
+  if (typeof value === "string") return value || "—";
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value) || "—";
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
 }
 
 export default function Assistant() {
-  const [mode, setMode] = useState<Mode>("data");
+  const [mode, setMode] = useState<AskMode>("data");
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AskResult | null>(null);
+  const activeMode = MODES.find((item) => item.id === mode) ?? MODES[0];
 
   async function submit(question: string) {
     const text = question.trim();
     if (!text || busy) return;
     setBusy(true);
     setError(null);
+    setResult(null);
     try {
-      setResult(await ask(mode, text));
+      setResult(await api.ask(mode, text));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ask failed");
-      setResult(null);
     } finally {
       setBusy(false);
     }
   }
 
-  function switchMode(m: Mode) {
-    setMode(m);
+  function switchMode(nextMode: AskMode) {
+    setMode(nextMode);
     setResult(null);
     setError(null);
   }
 
+  const rowKeys = result?.rows
+    ? Array.from(new Set(result.rows.flatMap((row) => Object.keys(row ?? {}))))
+    : [];
+  const columns = rowKeys.length > 0 ? rowKeys : ["__result__"];
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="inline-flex items-center gap-2 text-[32px] font-semibold tracking-tight">
-          <Sparkles size={26} strokeWidth={1.75} /> Ask
-        </h1>
-        <p className="mt-1 text-[15px] text-muted-foreground">
-          {MODES.find((m) => m.id === mode)?.hint} — every reply cites its sources. No guessing.
-        </p>
-      </div>
+      <PageHeader title="Ask" question={activeMode.hint} />
 
-      <div className="inline-flex rounded-full bg-secondary p-1">
-        {MODES.map((m) => (
+      <div className="inline-flex rounded-md bg-secondary p-1" role="group" aria-label="Answer source">
+        {MODES.map((item) => (
           <button
-            key={m.id}
+            key={item.id}
             type="button"
-            onClick={() => switchMode(m.id)}
-            className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-all ${
-              mode === m.id
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+            aria-pressed={mode === item.id}
+            onClick={() => switchMode(item.id)}
+            className={cn(
+              "min-h-10 rounded-md px-3.5 py-2 text-[13px] font-medium transition-colors",
+              mode === item.id ? "bg-card text-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
           >
-            {m.label}
+            {item.label}
           </button>
         ))}
       </div>
+
+      <p className="text-[13px] leading-relaxed text-muted-foreground">
+        {activeMode.trust} Answers are stateless and never take actions.
+      </p>
 
       <form
         className="flex gap-2"
@@ -129,64 +135,94 @@ export default function Assistant() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <Button type="submit" className="rounded-xl" disabled={busy} aria-label="Ask">
+        <Button type="submit" disabled={busy || !q.trim()} aria-label="Ask">
           <SendHorizontal size={16} />
         </Button>
       </form>
 
+      {busy && (
+        <p role="status" className="text-[15px] text-muted-foreground">
+          Answering…
+        </p>
+      )}
+
       <div className="flex flex-wrap gap-2">
-        {EXAMPLES[mode].map((ex) => (
+        {EXAMPLES[mode].map((example) => (
           <button
-            key={ex}
+            key={example}
             type="button"
+            disabled={busy}
             onClick={() => {
-              setQ(ex);
-              submit(ex);
+              setQ(example);
+              submit(example);
             }}
-            className="rounded-full bg-secondary px-3 py-1.5 text-[13px] font-medium text-secondary-foreground transition-colors hover:bg-accent"
+            className="min-h-10 rounded-full bg-secondary px-3 py-2 text-[13px] font-medium text-secondary-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {ex}
+            {example}
           </button>
         ))}
       </div>
 
-      {error && <p className="text-[15px] text-destructive">{error}</p>}
+      {error && <p role="alert" className="text-[15px] text-destructive">{error}</p>}
 
       {result && (
-        <Card className="border-border/60 shadow-sm">
-          <CardContent className="space-y-4 pt-6">
-            <p className="text-[17px] leading-relaxed">{result.answer}</p>
-            {result.sql && (
-              <pre className="overflow-x-auto rounded-xl bg-secondary p-3 font-mono text-xs text-secondary-foreground">
-                {result.sql}
-              </pre>
-            )}
-            {result.rows && result.rows.length > 0 && (
-              <p className="text-[13px] tabular-nums text-muted-foreground">
-                {result.rows.length} row(s), first:{" "}
-                {Object.entries(result.rows[0]).slice(0, 3).map(([k, v]) => `${k}=${v}`).join(", ")}
-              </p>
-            )}
-            <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
-              <span className="text-[13px] text-muted-foreground">Sources:</span>
-              {result.sources.length > 0 ? (
-                result.sources.map((s, i) => (
-                  <code key={`${s.endpoint}-${i}`} className="rounded-md bg-secondary px-2 py-1 font-mono text-xs text-secondary-foreground">
-                    {s.document ? `${s.document}#${s.chunk_index} (${s.score})` : s.endpoint}
-                  </code>
-                ))
-              ) : (
-                <span className="text-[13px] text-muted-foreground">none — try an example above</span>
+        <div aria-live="polite">
+          <Card>
+            <CardContent className="space-y-4 pt-6">
+              <p className="text-[17px] leading-relaxed">{result.answer}</p>
+              {result.rows && result.rows.length > 0 && (
+                <Table className="text-[13px]">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      {columns.map((column) => <TableHead key={column}>{column === "__result__" ? "Result" : column}</TableHead>)}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {result.rows.map((row, rowIndex) => (
+                      <TableRow key={rowIndex}>
+                        {columns.map((column) => (
+                          <TableCell key={column} className="max-w-64 whitespace-normal break-words">
+                            {column === "__result__" ? displayValue(row) : displayValue(row?.[column])}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
-            </div>
-          </CardContent>
-        </Card>
+              <details className="border-t border-border pt-3">
+                <summary className="cursor-pointer text-[13px] text-muted-foreground">How this was answered</summary>
+                <div className="mt-3 space-y-3">
+                  {result.sql && (
+                    <pre className="overflow-x-auto rounded-md bg-secondary p-3 font-mono text-xs text-secondary-foreground">
+                      {result.sql}
+                    </pre>
+                  )}
+                  <details>
+                    <summary className="cursor-pointer text-[13px] text-muted-foreground">Sources</summary>
+                    <div className="mt-2 space-y-2">
+                      {result.sources.length > 0 ? result.sources.map((source, index) => (
+                        <div key={`${source.endpoint}-${index}`} className="rounded-md bg-secondary p-2 font-mono text-xs">
+                          <p>{source.endpoint}</p>
+                          <p>params: {displayValue(source.params)}</p>
+                          {source.document && <p>document: {source.document}</p>}
+                          {source.chunk_index != null && <p>passage: {source.chunk_index + 1}</p>}
+                          {source.score != null && <p>score: {source.score}</p>}
+                        </div>
+                      )) : <p className="text-[13px] text-muted-foreground">No sources returned.</p>}
+                    </div>
+                  </details>
+                </div>
+              </details>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       <p className="text-[13px] text-muted-foreground">
-        Grounded in OLTP + batch forecasts today; governed Gold next.{" "}
-        <Link to="/pipeline" className="text-primary hover:underline">
-          Pipeline status →
+        Live books today; published Databricks numbers when you pick that mode.{" "}
+        <Link to="/pipeline" className="hover:underline">
+          How numbers are trusted
         </Link>
       </p>
     </div>
