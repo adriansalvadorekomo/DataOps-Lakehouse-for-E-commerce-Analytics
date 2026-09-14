@@ -5,8 +5,7 @@ export function TrustStrip({ className = "" }: { className?: string }) {
     <div className={`space-y-1 text-[12px] leading-snug text-muted-foreground ${className}`}>
       <p>Live marketplace books</p>
       <p>
-        Last published on Databricks · {BACKFILL.at}{" "}
-        <span className="text-muted-foreground/80">(validation snapshot)</span>
+        Validation snapshot published on Databricks · {BACKFILL.at}
       </p>
       <a
         href={WORKSPACE_URL}
@@ -14,7 +13,7 @@ export function TrustStrip({ className = "" }: { className?: string }) {
         rel="noreferrer"
         className="inline-block hover:underline"
       >
-        Open workspace
+        Open workspace (new tab)
       </a>
     </div>
   );

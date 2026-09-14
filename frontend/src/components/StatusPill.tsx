@@ -16,6 +16,9 @@ const LABEL: Record<DeliveryStatus, string> = {
 };
 
 export function StatusPill({ status, className }: { status: DeliveryStatus; className?: string }) {
+  const dot = DOT[status] ?? "bg-muted-foreground";
+  const label = LABEL[status] ?? "Unknown status";
+
   return (
     <span
       className={cn(
@@ -23,8 +26,8 @@ export function StatusPill({ status, className }: { status: DeliveryStatus; clas
         className,
       )}
     >
-      <span className={cn("size-1.5 rounded-full", DOT[status])} />
-      {LABEL[status]}
+      <span aria-hidden="true" className={cn("size-1.5 rounded-full", dot)} />
+      {label}
     </span>
   );
 }

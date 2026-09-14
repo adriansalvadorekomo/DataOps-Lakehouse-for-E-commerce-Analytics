@@ -48,6 +48,40 @@ export interface OrderCreate {
   items: OrderItemCreate[];
 }
 
+export type AskMode = "data" | "docs" | "genie";
+
+export interface AskSource {
+  endpoint: string;
+  params: Record<string, unknown>;
+  document?: string | null;
+  chunk_index?: number | null;
+  score?: number | null;
+}
+
+export interface AskResult {
+  answer: string;
+  intent: string;
+  sources: AskSource[];
+  sql?: string;
+  rows?: Record<string, unknown>[];
+}
+
+export interface DocumentRecord {
+  document_id: number;
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+  status: "uploaded" | "ready" | "failed";
+  error: string | null;
+}
+
+export interface DocumentHit {
+  document: string;
+  chunk_index: number;
+  content: string;
+  score: number;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -57,10 +91,11 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
+  const headers = new Headers(init?.headers);
+  if (init?.body != null && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  const res = await fetch(`${BASE}${path}`, { ...init, headers });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     const detail =
@@ -99,6 +134,22 @@ export const api = {
   stockCritical: (limit = 50) => request<StockAlert[]>(`/stats/stock-critical?limit=${limit}`),
   cities: () => request<CityPerf[]>("/stats/city-performance"),
   forecast: (trailing = 90) => request<ForecastResponse>(`/stats/forecast?trailing=${trailing}`),
+  ask: (mode: AskMode, question: string) => {
+    const path = mode === "data" ? "/ai/ask" : mode === "docs" ? "/ai/ask-docs" : "/ai/ask-genie";
+    return request<AskResult>(path, { method: "POST", body: JSON.stringify({ question }) });
+  },
+  listDocuments: () => request<DocumentRecord[]>("/documents"),
+  uploadDocument: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<DocumentRecord>("/documents", { method: "POST", body: form });
+  },
+  deleteDocument: (id: number) => request<void>(`/documents/${id}`, { method: "DELETE" }),
+  searchDocuments: (query: string, k = 5) =>
+    request<DocumentHit[]>("/documents/search", {
+      method: "POST",
+      body: JSON.stringify({ query, k }),
+    }),
 };
 
 export function formatPercent(ratio: number, digits = 1): string {
@@ -181,7 +232,7 @@ export interface CityPerf {
 
 export interface ForecastResponse {
   asof: string | null;
-  actuals: TrendPoint[];
+  actuals: { date: string; revenue: number }[];
   forecasts: { rf: { date: string; yhat: number }[]; prophet: { date: string; yhat: number }[] };
 }
 

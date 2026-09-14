@@ -32,22 +32,29 @@ export default function Operations() {
             <CardTitle>Shipping by metro</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {cities.isError && <StackError />}
-            {(cities.data ?? []).map((c) => (
-              <div key={c.city} className="flex items-baseline justify-between gap-4 text-[15px]">
-                <span className="font-medium">{c.city}</span>
-                <span className="font-mono text-muted-foreground tabular-nums">
-                  {formatPercent(c.delayed_rate, 0)} delayed · {formatPercent(c.return_rate, 0)} returned
-                </span>
-              </div>
-            ))}
+            {cities.isError ? (
+              <StackError message="Couldn't load metro shipping." retry={() => cities.refetch()} />
+            ) : cities.isLoading ? (
+              <TableSkeleton rows={5} cols={2} />
+            ) : (cities.data ?? []).length === 0 ? (
+              <EmptyState title="No metro shipping yet" body="Delay and return rates appear after completed orders are recorded." />
+            ) : (
+              (cities.data ?? []).map((c) => (
+                <div key={c.city} className="flex items-baseline justify-between gap-4 text-[15px]">
+                  <span className="font-medium">{c.city}</span>
+                  <span className="font-mono text-muted-foreground tabular-nums">
+                    {formatPercent(c.delayed_rate, 0)} delayed · {formatPercent(c.return_rate, 0)} returned
+                  </span>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Integrity of the live books</CardTitle>
-            {dq.data &&
+            {dq.data && dq.data.length > 0 &&
               (bad.length === 0 ? (
                 <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--success)]">
                   <CheckCircle2 size={14} /> Passing
@@ -61,12 +68,16 @@ export default function Operations() {
           <CardContent className="p-0">
             {dq.isError ? (
               <div className="p-5">
-                <StackError />
+                <StackError message="Couldn't load integrity checks." retry={() => dq.refetch()} />
               </div>
             ) : dq.isLoading ? (
               <TableSkeleton cols={2} />
+            ) : (dq.data ?? []).length === 0 ? (
+              <EmptyState title="No integrity checks returned" body="Passing requires a non-empty set of checks with zero violations." />
             ) : (
-              <Table>
+              <>
+                <p className="px-4 pt-4 text-[13px] text-muted-foreground">These checks mirror R1–R7 over PostgreSQL and the live marketplace books. They are not a live Databricks workflow result.</p>
+                <Table>
                 <TableBody>
                   {(dq.data ?? []).map((c) => (
                     <TableRow key={c.rule}>
@@ -90,8 +101,9 @@ export default function Operations() {
                       </TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
-              </Table>
+                  </TableBody>
+                </Table>
+              </>
             )}
           </CardContent>
         </Card>
@@ -107,7 +119,7 @@ export default function Operations() {
         <CardContent className="p-0">
           {stock.isError ? (
             <div className="p-5">
-              <StackError />
+              <StackError message="Couldn't load low-stock products." retry={() => stock.refetch()} />
             </div>
           ) : stock.isLoading ? (
             <TableSkeleton />
@@ -122,6 +134,7 @@ export default function Operations() {
                   <TableHead>Brand</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">Stock</TableHead>
+                  <TableHead className="text-right">Snapshot</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -132,6 +145,7 @@ export default function Operations() {
                     <TableCell className="text-muted-foreground">{p.brand}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{formatINR(p.current_price, 0)}</TableCell>
                     <TableCell className="text-right font-mono font-medium tabular-nums text-destructive">{p.latest_stock}</TableCell>
+                    <TableCell className="text-right font-mono text-muted-foreground tabular-nums">{p.latest_snapshot_date}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

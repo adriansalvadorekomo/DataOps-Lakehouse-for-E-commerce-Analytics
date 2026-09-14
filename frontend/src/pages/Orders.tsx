@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useState } from "react";
 import { api, formatINR, type DeliveryStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusPill } from "@/components/StatusPill";
 import {
@@ -26,36 +27,40 @@ const FILTER_LABEL: Record<(typeof FILTERS)[number], string> = {
 };
 
 export default function Orders() {
-  const nav = useNavigate();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("ALL");
   const orders = useQuery({
     queryKey: ["orders", filter],
     queryFn: () => api.listOrders(filter === "ALL" ? undefined : { delivery_status: filter }),
     staleTime: 30_000,
   });
+  const resultCopy = orders.data
+    ? filter === "ALL"
+      ? `${orders.data.length.toLocaleString("en-IN")} of the latest 20 orders shown`
+      : `${orders.data.length.toLocaleString("en-IN")} of the latest 20 ${FILTER_LABEL[filter].toLowerCase()} orders shown`
+    : "Latest 20 orders";
 
   return (
     <div className="space-y-8">
       <PageHeader
         title="Orders"
-        question={orders.data ? `${orders.data.length.toLocaleString("en-IN")} shown · latest first` : "Inspect a single order — latest first."}
+        question={`${resultCopy} · latest first.`}
         action={
-          <Link
-            to="/new"
-            className="rounded-md bg-primary px-4 py-2 text-[15px] font-medium text-primary-foreground no-underline hover:bg-primary/90"
-          >
+          <Link to="/new" className={buttonVariants()}>
             Book order
           </Link>
         }
       />
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        {orders.isFetching ? "Loading orders" : resultCopy}
+      </p>
 
-      <div className="inline-flex flex-wrap rounded-md bg-secondary p-1" role="tablist" aria-label="Fulfillment status">
+      <fieldset className="inline-flex flex-wrap rounded-md bg-secondary p-1">
+        <legend className="sr-only">Fulfillment status</legend>
         {FILTERS.map((f) => (
           <button
             key={f}
             type="button"
-            role="tab"
-            aria-selected={filter === f}
+            aria-pressed={filter === f}
             onClick={() => setFilter(f)}
             className={cn(
               "rounded-md px-3.5 py-1.5 text-[13px] font-medium transition-colors",
@@ -65,13 +70,13 @@ export default function Orders() {
             {FILTER_LABEL[f]}
           </button>
         ))}
-      </div>
+      </fieldset>
 
       <Card className="overflow-hidden">
         <CardContent className="p-0">
           {orders.isError ? (
             <div className="p-6">
-              <StackError />
+              <StackError retry={() => void orders.refetch()} />
             </div>
           ) : orders.isLoading ? (
             <TableSkeleton />
@@ -88,19 +93,15 @@ export default function Orders() {
               </TableHeader>
               <TableBody>
                 {(orders.data ?? []).map((o) => (
-                  <TableRow
-                    key={o.order_id}
-                    className="cursor-pointer"
-                    tabIndex={0}
-                    onClick={() => nav(`/orders/${o.order_id}`)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        nav(`/orders/${o.order_id}`);
-                      }
-                    }}
-                  >
-                    <TableCell className="font-mono font-medium">#{o.order_id}</TableCell>
+                  <TableRow key={o.order_id}>
+                    <TableCell className="font-mono font-medium">
+                      <Link
+                        to={`/orders/${o.order_id}`}
+                        className="rounded-sm underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                      >
+                        #{o.order_id}
+                      </Link>
+                    </TableCell>
                     <TableCell className="font-mono text-muted-foreground">{o.customer_id}</TableCell>
                     <TableCell className="font-mono text-muted-foreground tabular-nums">{o.order_date}</TableCell>
                     <TableCell>

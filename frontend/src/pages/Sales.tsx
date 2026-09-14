@@ -62,11 +62,19 @@ export default function Sales() {
     <div className="space-y-10">
       <PageHeader title="Revenue" question="What is driving sales, and what is changing?" />
 
-      {electronics && catTotal > 0 && (
+      {categories.isLoading ? (
+        <p role="status" className="text-[15px] text-muted-foreground">Reading category mix…</p>
+      ) : categories.isError ? (
+        <StackError message="Couldn't load the categories insight." retry={() => categories.refetch()} />
+      ) : (categories.data ?? []).length === 0 ? (
+        <EmptyState title="No category insight yet" body="Category contribution appears once product sales are recorded." />
+      ) : electronics && catTotal > 0 ? (
         <p className="text-[15px] text-muted-foreground">
           Orders are spread evenly across five categories; Electronics still takes{" "}
           {formatPercent(electronics.revenue / catTotal, 0)} of rupees because ticket size is higher.
         </p>
+      ) : (
+        <p className="text-[15px] text-muted-foreground">Category totals are available, but no Electronics sales are present.</p>
       )}
 
       <Card>
@@ -75,8 +83,12 @@ export default function Sales() {
         </CardHeader>
         <CardContent className="h-72">
           {trend.isError ? (
-            <StackError />
-          ) : trend.data ? (
+            <StackError message="Couldn't load category momentum." retry={() => trend.refetch()} />
+          ) : trend.isLoading ? (
+            <ChartSkeleton />
+          ) : (trend.data ?? []).length === 0 ? (
+            <EmptyState title="No category trend yet" body="Monthly category revenue appears once selling months are recorded." />
+          ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={series} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                 <CartesianGrid vertical={false} stroke="var(--border)" />
@@ -102,8 +114,6 @@ export default function Sales() {
                 ))}
               </LineChart>
             </ResponsiveContainer>
-          ) : (
-            <ChartSkeleton />
           )}
         </CardContent>
       </Card>
@@ -114,20 +124,27 @@ export default function Sales() {
             <CardTitle>Revenue by metro</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {cities.isError && <StackError />}
-            {(cities.data ?? []).map((c) => (
-              <div key={c.city} className="space-y-1.5">
-                <div className="flex items-baseline justify-between text-[15px]">
-                  <span className="font-medium">{c.city}</span>
-                  <span className="font-mono text-muted-foreground tabular-nums">
-                    {formatINR(c.revenue, 0)} · {formatPercent(c.revenue / (cityTotal || 1), 0)}
-                  </span>
+            {cities.isError ? (
+              <StackError message="Couldn't load metro revenue." retry={() => cities.refetch()} />
+            ) : cities.isLoading ? (
+              <ChartSkeleton />
+            ) : (cities.data ?? []).length === 0 ? (
+              <EmptyState title="No metro revenue yet" body="Metro contribution appears once orders are on the live books." />
+            ) : (
+              (cities.data ?? []).map((c) => (
+                <div key={c.city} className="space-y-1.5">
+                  <div className="flex items-baseline justify-between text-[15px]">
+                    <span className="font-medium">{c.city}</span>
+                    <span className="font-mono text-muted-foreground tabular-nums">
+                      {formatINR(c.revenue, 0)} · {formatPercent(c.revenue / (cityTotal || 1), 0)}
+                    </span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max((c.revenue / (cityTotal || 1)) * 100, 1.5)}%` }} />
+                  </div>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max((c.revenue / (cityTotal || 1)) * 100, 1.5)}%` }} />
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
 
@@ -137,23 +154,30 @@ export default function Sales() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-[13px] text-muted-foreground">Bands of 0–10, 10–30, 30–50 and 50–70 percent off.</p>
-            {bands.isError && <StackError />}
-            {(bands.data ?? []).map((b) => {
-              const max = Math.max(...(bands.data ?? []).map((x) => x.revenue), 1);
-              return (
-                <div key={b.band} className="space-y-1.5">
-                  <div className="flex items-baseline justify-between text-[15px]">
-                    <span className="font-medium tabular-nums">{b.band}% off</span>
-                    <span className="font-mono text-muted-foreground tabular-nums">
-                      {formatINR(b.revenue, 0)} · {b.lines.toLocaleString("en-IN")} lines
-                    </span>
+            {bands.isError ? (
+              <StackError message="Couldn't load discount bands." retry={() => bands.refetch()} />
+            ) : bands.isLoading ? (
+              <ChartSkeleton />
+            ) : (bands.data ?? []).length === 0 ? (
+              <EmptyState title="No discount bands yet" body="Seller-funded discount totals appear once discounted lines are recorded." />
+            ) : (
+              (bands.data ?? []).map((b) => {
+                const max = Math.max(...(bands.data ?? []).map((x) => x.revenue), 1);
+                return (
+                  <div key={b.band} className="space-y-1.5">
+                    <div className="flex items-baseline justify-between text-[15px]">
+                      <span className="font-medium tabular-nums">{b.band}% off</span>
+                      <span className="font-mono text-muted-foreground tabular-nums">
+                        {formatINR(b.revenue, 0)} · {b.lines.toLocaleString("en-IN")} lines
+                      </span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+                      <div className="h-full rounded-full bg-foreground/70" style={{ width: `${Math.max((b.revenue / max) * 100, 1.5)}%` }} />
+                    </div>
                   </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
-                    <div className="h-full rounded-full bg-foreground/70" style={{ width: `${Math.max((b.revenue / max) * 100, 1.5)}%` }} />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </CardContent>
         </Card>
       </div>
@@ -168,7 +192,7 @@ export default function Sales() {
         <CardContent className="p-0">
           {sellers.isError ? (
             <div className="p-5">
-              <StackError />
+              <StackError message="Couldn't load seller revenue." retry={() => sellers.refetch()} />
             </div>
           ) : sellers.isLoading ? (
             <TableSkeleton />

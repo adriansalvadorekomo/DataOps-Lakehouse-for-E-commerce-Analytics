@@ -77,5 +77,6 @@ export function dqDetail(rule: string): string {
 }
 
 export function estimatedLineTotal(unitPrice: number, quantity: number, discountPct: number): number {
-  return unitPrice * quantity * (1 - discountPct / 100);
+  const total = unitPrice * quantity * (1 - discountPct / 100);
+  return Math.round((total + Number.EPSILON) * 100) / 100;
 }

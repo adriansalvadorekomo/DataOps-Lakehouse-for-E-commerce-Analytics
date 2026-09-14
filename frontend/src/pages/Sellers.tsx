@@ -40,11 +40,15 @@ export default function Sellers() {
       <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle>Performance · top 50 by revenue</CardTitle>
+          <details className="text-[13px] text-muted-foreground">
+            <summary className="cursor-pointer">How attention thresholds work</summary>
+            <p className="mt-1">Attention means rating below 3.5, delayed delivery above 60% of completed orders, or returns above 20% of lines.</p>
+          </details>
         </CardHeader>
         <CardContent className="p-0">
           {sellers.isError ? (
             <div className="p-5">
-              <StackError />
+              <StackError message="Couldn't load the top 50 sellers." retry={() => sellers.refetch()} />
             </div>
           ) : sellers.isLoading ? (
             <TableSkeleton cols={7} />
@@ -52,15 +56,16 @@ export default function Sellers() {
             <EmptyState title="No sellers to rank" body="Seller quality appears once orders are on the books." />
           ) : (
             <Table>
+              <caption className="sr-only">Top 50 sellers by revenue with ratings, delayed delivery rates, return rates and attention flags.</caption>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>Seller</TableHead>
-                  <TableHead className="text-right">Revenue</TableHead>
-                  <TableHead className="text-right">Lines</TableHead>
-                  <TableHead className="text-right">Rating</TableHead>
-                  <TableHead className="text-right">Delayed</TableHead>
-                  <TableHead className="text-right">Returned</TableHead>
-                  <TableHead className="text-right">Attention</TableHead>
+                  <TableHead scope="col">Seller</TableHead>
+                  <TableHead scope="col" className="text-right">Revenue</TableHead>
+                  <TableHead scope="col" className="text-right">Lines</TableHead>
+                  <TableHead scope="col" className="text-right">Rating</TableHead>
+                  <TableHead scope="col" className="text-right">Delayed (of completed)</TableHead>
+                  <TableHead scope="col" className="text-right">Returned</TableHead>
+                  <TableHead scope="col" className="text-right">Attention</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

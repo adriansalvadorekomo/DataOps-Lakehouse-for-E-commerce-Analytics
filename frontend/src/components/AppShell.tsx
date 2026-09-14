@@ -11,8 +11,9 @@ import {
   Store,
   X,
 } from "lucide-react";
-import { Suspense, lazy, useState } from "react";
-import { Link, NavLink, Route, Routes } from "react-router-dom";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { PageHeader, TableSkeleton } from "@/components/PageHeader";
 import { TrustStrip } from "@/components/TrustStrip";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,18 @@ const OrderDetail = lazy(() => import("@/pages/OrderDetail"));
 const CreateOrder = lazy(() => import("@/pages/CreateOrder"));
 const Assistant = lazy(() => import("@/pages/Assistant"));
 const Documents = lazy(() => import("@/pages/Documents"));
+
+const ROUTE_TITLES: Record<string, string> = {
+  "/": "Today",
+  "/sales": "Revenue",
+  "/sellers": "Sellers",
+  "/ask": "Ask",
+  "/operations": "Needs action",
+  "/orders": "Orders",
+  "/new": "Book order",
+  "/documents": "Briefs",
+  "/pipeline": "How numbers are trusted",
+};
 
 function Section({ label }: { label: string }) {
   return (
@@ -55,7 +68,7 @@ function NavItem({
       onClick={onClick}
       className={({ isActive }) =>
         cn(
-          "flex items-center gap-3 rounded-md px-3 py-2 text-[14px] transition-colors",
+          "flex items-center gap-3 rounded-md px-3 py-2 text-[14px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
           isActive
             ? "bg-primary/10 font-medium text-foreground"
             : "font-normal text-muted-foreground hover:bg-secondary hover:text-foreground",
@@ -70,7 +83,7 @@ function NavItem({
 
 function Nav({ onNavigate }: { onNavigate?: () => void }) {
   return (
-    <nav className="flex flex-col gap-0.5">
+    <nav aria-label="Primary" className="flex flex-col gap-0.5">
       <Section label="Marketplace" />
       <NavItem to="/" end icon={<LayoutDashboard size={17} strokeWidth={1.75} />} label="Today" onClick={onNavigate} />
       <NavItem to="/sales" icon={<ChartLine size={17} strokeWidth={1.75} />} label="Revenue" onClick={onNavigate} />
@@ -87,8 +100,71 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+function NotFound() {
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Page not found" question="This route is not part of the marketplace console." />
+      <Link to="/" className="inline-block text-[15px] font-medium hover:underline">
+        Go to Today
+      </Link>
+    </div>
+  );
+}
+
 export function AppShell() {
   const [open, setOpen] = useState(false);
+  const location = useLocation();
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    const routeTitle = location.pathname.startsWith("/orders/") ? "Order detail" : ROUTE_TITLES[location.pathname];
+    document.title = `${routeTitle ?? "Page not found"} · Smart-ERP`;
+    requestAnimationFrame(() => document.getElementById("page-title")?.focus());
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!open) {
+      document.body.style.overflow = "";
+      if (wasOpenRef.current) menuButtonRef.current?.focus();
+      wasOpenRef.current = false;
+      return;
+    }
+
+    wasOpenRef.current = true;
+    document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !drawerRef.current) return;
+
+      const focusable = Array.from(
+        drawerRef.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'),
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [open]);
 
   return (
     <div className="flex min-h-screen">
@@ -114,12 +190,25 @@ export function AppShell() {
       {open && (
         <div className="fixed inset-0 z-40 md:hidden">
           <button type="button" className="absolute inset-0 bg-foreground/20" aria-label="Close menu" onClick={() => setOpen(false)} />
-          <aside className="relative z-50 flex h-full w-64 flex-col bg-sidebar p-4 shadow-none">
+          <aside
+            ref={drawerRef}
+            id="mobile-navigation"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Marketplace navigation"
+            className="relative z-50 flex h-full w-72 max-w-[85vw] flex-col border-r border-border bg-sidebar p-4"
+          >
             <div className="mb-2 flex items-center justify-between">
               <Link to="/" className="font-serif text-[1.25rem]" onClick={() => setOpen(false)}>
                 Smart-ERP
               </Link>
-              <button type="button" className="rounded-md p-2 text-muted-foreground" aria-label="Close menu" onClick={() => setOpen(false)}>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                className="rounded-md p-3 text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                aria-label="Close menu"
+                onClick={() => setOpen(false)}
+              >
                 <X size={18} />
               </button>
             </div>
@@ -131,15 +220,23 @@ export function AppShell() {
         </div>
       )}
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1" aria-hidden={open || undefined}>
         <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm md:hidden">
-          <button type="button" className="rounded-md p-2" aria-label="Open menu" onClick={() => setOpen(true)}>
+          <button
+            ref={menuButtonRef}
+            type="button"
+            className="rounded-md p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            aria-label="Open menu"
+            aria-expanded={open}
+            aria-controls="mobile-navigation"
+            onClick={() => setOpen(true)}
+          >
             <Menu size={18} />
           </button>
           <span className="font-serif text-lg">Smart-ERP</span>
         </header>
-        <div id="main" className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
-          <Suspense fallback={<p className="text-[15px] text-muted-foreground">Loading…</p>}>
+        <main id="main" className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+          <Suspense fallback={<TableSkeleton rows={8} cols={4} />}>
             <Routes>
               <Route path="/" element={<Overview />} />
               <Route path="/ask" element={<Assistant />} />
@@ -151,9 +248,10 @@ export function AppShell() {
               <Route path="/orders" element={<Orders />} />
               <Route path="/orders/:id" element={<OrderDetail />} />
               <Route path="/new" element={<CreateOrder />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
-        </div>
+        </main>
       </div>
     </div>
   );
