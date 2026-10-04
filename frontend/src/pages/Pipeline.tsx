@@ -1,120 +1,298 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, CheckCircle2, XCircle } from "lucide-react";
-import { Fragment } from "react";
+import { ExternalLink, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
-import { api, formatINR } from "@/lib/api";
-import { BACKFILL, WORKSPACE_URL } from "@/lib/constants";
+import { Disclosure } from "@/components/Disclosure";
+import { MeterRow } from "@/components/MeterRow";
+import { EmptyState, PageHeader, PageSkeleton, StackError } from "@/components/PageHeader";
+import { TrustStatus } from "@/components/TrustStatus";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState, PageHeader, StackError } from "@/components/PageHeader";
+import { api, formatINR, type TrustStatus as TrustEvidence } from "@/lib/api";
+import { WORKSPACE_URL } from "@/lib/constants";
 
-function Stage({
-  index,
-  name,
-  children,
-}: {
-  index: string;
-  name: string;
-  children: React.ReactNode;
-}) {
+const trustQuery = {
+  queryKey: ["trust-status"] as const,
+  queryFn: api.trustStatus,
+  staleTime: 60_000,
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  refetchInterval: false as const,
+};
+
+function validDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function dateLabel(value: string | null | undefined): string {
+  const date = validDate(value);
+  return date ? new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" }).format(date) : "Not available";
+}
+
+function dateTimeLabel(value: string | null | undefined): string {
+  const date = validDate(value);
+  return date
+    ? new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }).format(date)
+    : "Not available";
+}
+
+function durationLabel(seconds: number | null): string {
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return "Not available";
+  if (seconds < 60) return `${Math.round(seconds)} sec`;
+  const minutes = Math.floor(seconds / 60);
+  const remainder = Math.round(seconds % 60);
+  return remainder ? `${minutes} min ${remainder} sec` : `${minutes} min`;
+}
+
+function resultLabel(value: string): string {
+  return value ? value.toLowerCase().replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase()) : "Not available";
+}
+
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <Card className="min-w-0 flex-1">
-      <CardHeader className="pb-2">
-        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{index}</p>
-        <CardTitle className="text-[17px] tracking-tight">{name}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-1 text-[15px]">{children}</CardContent>
-    </Card>
+    <div className="min-w-0 border-t border-border pt-3">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-1 break-words text-sm font-medium text-foreground">{children}</dd>
+    </div>
   );
 }
 
-function Num({ children }: { children: React.ReactNode }) {
-  return <span className="font-mono font-medium tabular-nums">{children}</span>;
+function Stage({
+  number,
+  title,
+  status,
+  children,
+}: {
+  number: string;
+  title: string;
+  status: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 pb-7 last:pb-0">
+      <div className="relative z-10 grid size-8 place-items-center rounded-full border border-border bg-background font-mono text-xs font-medium tabular-nums">
+        {number}
+      </div>
+      <Card className="min-w-0 shadow-none">
+        <CardHeader className="gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
+          <CardTitle className="text-lg tracking-tight">{title}</CardTitle>
+          <div className="shrink-0">{status}</div>
+        </CardHeader>
+        <CardContent>{children}</CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function MissingEvidence({ data }: { data: TrustEvidence }) {
+  const missing: string[] = [];
+  if (data.live_books.status !== "passing") missing.push(data.live_books.summary);
+  if (data.workflow.status !== "succeeded") missing.push(data.workflow.business_impact);
+  if (data.forecast.status !== "current") missing.push(data.forecast.summary);
+  if (data.genie.status !== "ready") missing.push(data.genie.summary);
+  if (missing.length === 0) return null;
+
+  return (
+    <div className="mt-5 border-t border-border pt-4">
+      <p className="text-sm font-medium text-foreground">Evidence still needed</p>
+      <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-muted-foreground">
+        {missing.map((item) => <li key={item}>— {item}</li>)}
+      </ul>
+    </div>
+  );
 }
 
 export default function Pipeline() {
-  const overview = useQuery({ queryKey: ["overview"], queryFn: api.overview, staleTime: 60_000 });
-  const dq = useQuery({ queryKey: ["dq"], queryFn: api.dqChecks, staleTime: 60_000 });
-  const bad = (dq.data ?? []).filter((c) => c.violations > 0);
-  const o = overview.data;
+  const evidence = useQuery(trustQuery);
 
-  const stages = [
-    <Stage key="oltp" index="Live" name="Incoming orders (live books)">
-      {overview.isError ? (
-        <StackError message="Couldn't load incoming order totals." retry={() => overview.refetch()} />
-      ) : overview.isLoading ? (
-        <p role="status" className="text-muted-foreground">Reading live orders…</p>
-      ) : o ? (
-        <p><Num>{o.total_orders.toLocaleString("en-IN")}</Num> orders</p>
-      ) : (
-        <EmptyState title="No overview returned" body="Incoming order totals need a live marketplace overview." />
-      )}
-    </Stage>,
-    <Stage key="bronze" index="Databricks" name="Landing on Databricks">
-      <p><Num>{BACKFILL.bronze_rows.toLocaleString("en-IN")}</Num> rows</p>
-      <p className="text-muted-foreground">Snapshot · {BACKFILL.at}</p>
-    </Stage>,
-    <Stage key="silver" index="Databricks" name="Cleaned marketplace records">
-      <p><Num>{BACKFILL.silver.length}</Num> entities</p>
-      <p className="text-muted-foreground">Validated snapshot · {BACKFILL.at}</p>
-    </Stage>,
-    <Stage key="dq" index="Gate" name="Integrity checks">
-      {dq.isError ? (
-        <StackError message="Couldn't load integrity checks." retry={() => dq.refetch()} />
-      ) : dq.isLoading ? (
-        <p role="status" className="text-muted-foreground">Checking live rules…</p>
-      ) : (dq.data ?? []).length === 0 ? (
-        <EmptyState title="No checks returned" body="Passing requires a non-empty set of integrity checks." />
-      ) : bad.length === 0 ? (
-        <p className="inline-flex items-center gap-1.5 text-[15px] font-medium">
-          <CheckCircle2 size={16} className="text-[var(--success)]" /> Passing
-        </p>
-      ) : (
-        <p className="inline-flex items-center gap-1.5 text-[15px] font-medium text-destructive">
-          <XCircle size={16} /> {bad.length} failing
-        </p>
-      )}
-      <p className="text-muted-foreground">Mirrors R1–R7 over the live books</p>
-    </Stage>,
-    <Stage key="gold" index="Databricks" name="Trusted marketplace numbers">
-      <p><Num>{BACKFILL.gold.length}</Num> published sets</p>
-      <p className="text-muted-foreground">{formatINR(BACKFILL.revenue, 0)} revenue</p>
-    </Stage>,
-  ];
+  if (evidence.isLoading) return <PageSkeleton />;
+  if (evidence.isError || !evidence.data) {
+    return <StackError message="Trust evidence could not be loaded. No live status is being shown." retry={() => evidence.refetch()} />;
+  }
+
+  const data = evidence.data;
+  const run = data.workflow.last_run;
 
   return (
-    <div className="space-y-8">
-      <PageHeader title="How numbers are trusted" question="Orders become published marketplace figures on Databricks, then this console reads the live books." />
+    <div className="space-y-10">
+      <PageHeader
+        eyebrow="Data trust center"
+        title="Why should I trust the numbers I’m seeing?"
+        question="A plain-language view of the evidence behind marketplace reporting, from source records to published numbers."
+        meta={<span>Evidence checked {dateTimeLabel(data.checked_at)}</span>}
+        action={
+          <Button variant="outline" onClick={() => evidence.refetch()} disabled={evidence.isFetching} aria-label="Refresh trust evidence">
+            <RefreshCw className={evidence.isFetching ? "animate-spin" : ""} aria-hidden="true" />
+            {evidence.isFetching ? "Refreshing evidence…" : "Refresh evidence"}
+          </Button>
+        }
+      />
 
-      <p className="text-[15px] text-muted-foreground">
-        Landing, cleaned records and trusted numbers below are a <strong className="font-medium text-foreground">validation snapshot from {BACKFILL.at}</strong>, not a live workspace job. Live checks mirror the rules over PostgreSQL and the marketplace books; they do not prove the latest Databricks job ran successfully.{" "}
-        <a href={WORKSPACE_URL} target="_blank" rel="noreferrer" className="hover:underline">Open the Databricks workspace</a>.
-      </p>
+      <section className="border-y border-border bg-card px-4 py-6 sm:px-6" aria-labelledby="overall-trust-title">
+        <p id="overall-trust-title" className="mb-4 section-kicker">
+          Overall evidence
+        </p>
+        <TrustStatus {...data.overall} variant="full" />
+        <MissingEvidence data={data} />
+      </section>
 
-      <div className="flex flex-col gap-2 xl:flex-row xl:items-stretch">
-        {stages.map((s, i) => (
-          <Fragment key={i}>
-            {i > 0 && <ArrowRight aria-hidden="true" size={16} className="mx-auto shrink-0 self-center text-muted-foreground xl:mx-0" />}
-            {s}
-          </Fragment>
-        ))}
-      </div>
+      <section aria-labelledby="evidence-title">
+        <div className="mb-6">
+          <p className="section-kicker section-kicker--ember">Evidence chain</p>
+          <h2 id="evidence-title" className="mt-2 font-serif text-2xl tracking-tight">What the evidence says</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+            Data collected → Records checked → Marketplace numbers prepared. Each step below shows its own actual status; later evidence does not erase an earlier issue.
+          </p>
+        </div>
 
-      <details className="text-[15px] text-muted-foreground">
-        <summary className="cursor-pointer font-medium text-foreground">Technical sets and tables</summary>
-        <div className="mt-4 grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader><CardTitle>Cleaned marketplace tables</CardTitle></CardHeader>
-            <CardContent><p>{BACKFILL.silver.join(" · ")}</p></CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle>Published marketplace sets</CardTitle></CardHeader>
+        <div className="relative before:absolute before:bottom-4 before:left-[0.95rem] before:top-4 before:w-px before:bg-border">
+          <Stage
+            number="1"
+            title="Data available · Live marketplace books"
+            status={<TrustStatus status={data.live_books.status} label={data.live_books.label} />}
+          >
+            <p className="text-sm leading-relaxed text-muted-foreground">{data.live_books.summary}</p>
+            <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+              <Fact label="Dataset’s latest order date">{dateLabel(data.live_books.source_as_of)}</Fact>
+              <Fact label="Checks passed">{data.live_books.checks_passed.toLocaleString("en-IN")} of {data.live_books.checks_total.toLocaleString("en-IN")}</Fact>
+              <Fact label="Violating records">{data.live_books.violations.toLocaleString("en-IN")}</Fact>
+            </dl>
+          </Stage>
+
+          <Stage
+            number="2"
+            title="Processing · Databricks workflow"
+            status={<TrustStatus status={data.workflow.status} label={data.workflow.label} />}
+          >
+            <p className="text-sm leading-relaxed text-muted-foreground">{data.workflow.summary}</p>
+            {run ? (
+              <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Fact label="Last run started">{dateTimeLabel(run.started_at)}</Fact>
+                <Fact label="Last run ended">{dateTimeLabel(run.ended_at)}</Fact>
+                <Fact label="Duration">{durationLabel(run.duration_seconds)}</Fact>
+                <Fact label="Result">{resultLabel(run.result)}</Fact>
+              </dl>
+            ) : (
+              <p className="mt-4 text-sm text-muted-foreground">No workflow run was returned by the workspace.</p>
+            )}
+            <p className="mt-4 text-sm"><span className="font-medium text-foreground">Business impact:</span> <span className="text-muted-foreground">{data.workflow.business_impact}</span></p>
+          </Stage>
+
+          <Stage
+            number="3"
+            title="Published numbers · Dated contract validation"
+            status={<TrustStatus status={data.published_data.status} label={data.published_data.label} />}
+          >
+            <p className="text-sm leading-relaxed text-muted-foreground">{data.published_data.summary}</p>
+            <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+              <Fact label="Validated on">{dateLabel(data.published_data.validated_at)}</Fact>
+              <Fact label="Validated rows">{data.published_data.rows.toLocaleString("en-IN")}</Fact>
+              <Fact label="Validated revenue">{formatINR(data.published_data.revenue, 0)}</Fact>
+            </dl>
+            <p className="mt-4 text-xs font-medium text-muted-foreground">Contract validation snapshot, not a live query.</p>
+          </Stage>
+        </div>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(16rem,1fr)]" aria-labelledby="activity-title">
+        <Card className="shadow-none">
+          <CardHeader>
+            <p className="section-kicker">Workspace evidence</p>
+            <CardTitle id="activity-title">Recent activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {run ? (
+              <div>
+                <dl className="grid gap-3 sm:grid-cols-3">
+                  <Fact label="Run date and time">{dateTimeLabel(run.started_at)}</Fact>
+                  <Fact label="Duration">{durationLabel(run.duration_seconds)}</Fact>
+                  <Fact label="Result">{resultLabel(run.result)}</Fact>
+                </dl>
+                <p className="mt-5 text-sm leading-relaxed text-muted-foreground">{data.workflow.business_impact}</p>
+              </div>
+            ) : (
+              <EmptyState title={data.workflow.label} body={`${data.workflow.summary} ${data.workflow.business_impact}`} />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-none">
+          <CardHeader>
+            <CardTitle>Quality at a glance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <MeterRow
+              label="Critical checks passed"
+              value={data.live_books.checks_passed}
+              max={data.live_books.checks_total}
+              valueLabel={`${data.live_books.checks_passed} / ${data.live_books.checks_total}`}
+              secondary="Checks run against committed marketplace records."
+            />
+            <div className="border-t border-border py-3">
+              <p className="flex items-baseline justify-between gap-4 text-sm"><span className="font-medium">Violating records</span><span className="font-semibold tabular-nums">{data.live_books.violations.toLocaleString("en-IN")}</span></p>
+            </div>
+            <Link to="/operations" className="mt-2 inline-block text-sm font-medium text-link hover:underline">View check details</Link>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section aria-labelledby="ai-title">
+        <div className="mb-5">
+          <p className="section-kicker section-kicker--ember">Analytical services</p>
+          <h2 id="ai-title" className="mt-2 font-serif text-2xl tracking-tight">AI and forecast readiness</h2>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="shadow-none">
+            <CardHeader><CardTitle>Revenue forecast</CardTitle></CardHeader>
             <CardContent>
-              <p>{BACKFILL.gold.join(" · ")}</p>
-              <p className="mt-3"><Link to="/operations" className="hover:underline">Check-level status</Link></p>
+              <TrustStatus status={data.forecast.status} label={data.forecast.label} summary={data.forecast.summary} variant="full" />
+              <dl className="mt-5 grid gap-3 sm:grid-cols-2">
+                <Fact label="Forecast source date">{dateLabel(data.forecast.as_of)}</Fact>
+                <Fact label="Generated">{dateTimeLabel(data.forecast.generated_at)}</Fact>
+              </dl>
+            </CardContent>
+          </Card>
+          <Card className="shadow-none">
+            <CardHeader><CardTitle>Genie readiness</CardTitle></CardHeader>
+            <CardContent>
+              <TrustStatus status={data.genie.status} label={data.genie.label} summary={data.genie.summary} variant="full" />
+              {data.genie.status === "setup_required" && (
+                <ol className="ml-5 mt-5 list-decimal space-y-2 text-sm leading-relaxed text-muted-foreground">
+                  <li>Create the Smart-ERP Gold Genie Space.</li>
+                  <li>Add the published marketplace datasets.</li>
+                  <li>Set <span className="font-mono text-foreground">GENIE_SPACE_ID</span> on the backend.</li>
+                </ol>
+              )}
             </CardContent>
           </Card>
         </div>
-      </details>
+      </section>
+
+      <Disclosure eyebrow="Evidence boundaries" summary="How business stages map to the technical data path">
+        <div className="grid gap-5 md:grid-cols-2">
+          <div>
+            <p className="font-medium text-foreground">Data collected and records checked</p>
+            <p className="mt-1">PostgreSQL is the live marketplace book checked by the backend. In the workspace, Bronze lands source records, Silver prepares entities, and DQ applies integrity rules. Live-book checks do not prove a Databricks workflow completed.</p>
+          </div>
+          <div>
+            <p className="font-medium text-foreground">Marketplace numbers prepared</p>
+            <p className="mt-1">Gold is the published reporting contract. Its row and revenue figures here are a dated validation snapshot, while workflow status is current REST metadata. Neither is presented as a live Gold query.</p>
+          </div>
+          <div>
+            <p className="font-medium text-foreground">Three different dates</p>
+            <p className="mt-1"><span className="font-medium text-foreground">Source as of</span> is the dataset’s latest order date. <span className="font-medium text-foreground">Evidence checked</span> is when the backend evaluated available evidence. <span className="font-medium text-foreground">Validated on</span> belongs only to the published contract snapshot.</p>
+          </div>
+          <div>
+            <p className="font-medium text-foreground">Credentials and normalization</p>
+            <p className="mt-1">The backend owns workspace credentials and normalizes Databricks REST responses into these statuses. No personal access token is sent to the browser.</p>
+            <a href={WORKSPACE_URL} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 font-medium text-link hover:underline">
+              Open Databricks workspace <ExternalLink size={14} aria-hidden="true" />
+              <span className="sr-only">(opens in a new tab)</span>
+            </a>
+          </div>
+        </div>
+      </Disclosure>
     </div>
   );
 }

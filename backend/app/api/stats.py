@@ -15,6 +15,14 @@ def get_overview(session: Session = Depends(get_db)):
     return stats.overview(session)
 
 
+@router.get("/performance-summary")
+def get_performance_summary(
+    days: int = Query(default=90, ge=7, le=365),
+    session: Session = Depends(get_db),
+):
+    return stats.performance_summary(session, days=days)
+
+
 @router.get("/revenue-trend")
 def get_revenue_trend(
     days: int = Query(default=30, ge=7, le=365),

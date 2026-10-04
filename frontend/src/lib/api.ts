@@ -82,6 +82,75 @@ export interface DocumentHit {
   score: number;
 }
 
+export interface MetricComparison {
+  current: number | null;
+  previous: number | null;
+  absolute_change: number | null;
+  relative_change: number | null;
+  direction: "up" | "down" | "flat";
+}
+
+export interface PerformanceSummary {
+  as_of: string | null;
+  days: number;
+  current_period: { start: string; end: string } | null;
+  previous_period: { start: string; end: string } | null;
+  metrics: Record<"revenue" | "orders" | "aov" | "return_rate" | "delayed_rate", MetricComparison>;
+}
+
+export interface TrustStatus {
+  checked_at: string;
+  overall: {
+    status: "trusted" | "attention" | "limited";
+    label: string;
+    summary: string;
+  };
+  live_books: {
+    status: "passing" | "failing" | "unavailable";
+    label: string;
+    checked_at: string;
+    source_as_of: string | null;
+    checks_passed: number;
+    checks_total: number;
+    violations: number;
+    summary: string;
+  };
+  workflow: {
+    status: "succeeded" | "running" | "failed" | "not_found" | "not_run" | "unavailable";
+    label: string;
+    summary: string;
+    business_impact: string;
+    last_run: {
+      run_id: number | null;
+      started_at: string | null;
+      ended_at: string | null;
+      duration_seconds: number | null;
+      result: string;
+    } | null;
+  };
+  published_data: {
+    status: "validated_snapshot";
+    label: string;
+    validated_at: string;
+    rows: number;
+    revenue: number;
+    summary: string;
+  };
+  forecast: {
+    status: "current" | "stale" | "unavailable";
+    label: string;
+    as_of: string | null;
+    generated_at: string | null;
+    summary: string;
+  };
+  genie: {
+    status: "ready" | "setup_required" | "unavailable";
+    label: string;
+    summary: string;
+    setup_guide: string;
+  };
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -107,10 +176,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   health: () => request<{ status: string; db: string }>("/health"),
-  listOrders: (params?: { customer_id?: string; delivery_status?: DeliveryStatus }) => {
+  listOrders: (params?: { customer_id?: string; delivery_status?: DeliveryStatus; limit?: number; offset?: number }) => {
     const q = new URLSearchParams();
     if (params?.customer_id) q.set("customer_id", params.customer_id);
     if (params?.delivery_status) q.set("delivery_status", params.delivery_status);
+    if (params?.limit != null) q.set("limit", String(params.limit));
+    if (params?.offset != null) q.set("offset", String(params.offset));
     const suffix = q.size > 0 ? `?${q}` : "";
     return request<Order[]>(`/orders${suffix}`);
   },
@@ -123,6 +194,9 @@ export const api = {
       body: JSON.stringify({ delivery_status }),
     }),
   overview: () => request<Overview>("/stats/overview"),
+  performanceSummary: (days = 90) =>
+    request<PerformanceSummary>(`/stats/performance-summary?days=${days}`),
+  trustStatus: () => request<TrustStatus>("/trust/status"),
   trend: (days = 90) => request<TrendPoint[]>(`/stats/revenue-trend?days=${days}`),
   categories: () => request<CategoryShare[]>("/stats/revenue-by-category"),
   bands: () => request<DiscountBand[]>("/stats/discount-bands"),

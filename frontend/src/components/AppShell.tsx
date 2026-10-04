@@ -1,7 +1,9 @@
 import {
+  Boxes,
   ChartLine,
   ClipboardList,
   FileText,
+  Gauge,
   LayoutDashboard,
   Menu,
   MessageCircle,
@@ -9,17 +11,26 @@ import {
   Rows3,
   ShieldCheck,
   Store,
+  TrendingUp,
+  Users,
   X,
 } from "lucide-react";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
-import { PageHeader, TableSkeleton } from "@/components/PageHeader";
+import { PageHeader, PageSkeleton } from "@/components/PageHeader";
 import { TrustStrip } from "@/components/TrustStrip";
 import { cn } from "@/lib/utils";
 
 const Overview = lazy(() => import("@/pages/Overview"));
 const Sales = lazy(() => import("@/pages/Sales"));
 const Sellers = lazy(() => import("@/pages/Sellers"));
+const SellerDetail = lazy(() => import("@/pages/SellerDetail"));
+const ProductDetail = lazy(() => import("@/pages/ProductDetail"));
+const CustomerDetail = lazy(() => import("@/pages/CustomerDetail"));
+const Customers = lazy(() => import("@/pages/Customers"));
+const Inventory = lazy(() => import("@/pages/Inventory"));
+const Performance = lazy(() => import("@/pages/Performance"));
+const Forecast = lazy(() => import("@/pages/Forecast"));
 const Operations = lazy(() => import("@/pages/Operations"));
 const Pipeline = lazy(() => import("@/pages/Pipeline"));
 const Orders = lazy(() => import("@/pages/Orders"));
@@ -32,20 +43,20 @@ const ROUTE_TITLES: Record<string, string> = {
   "/": "Today",
   "/sales": "Revenue",
   "/sellers": "Sellers",
+  "/customers": "Customers",
+  "/inventory": "Inventory",
+  "/performance": "Performance",
+  "/forecast": "Forecast",
   "/ask": "Ask",
   "/operations": "Needs action",
   "/orders": "Orders",
   "/new": "Book order",
-  "/documents": "Briefs",
+  "/documents": "Documents",
   "/pipeline": "How numbers are trusted",
 };
 
 function Section({ label }: { label: string }) {
-  return (
-    <p className="px-3 pt-5 pb-1 font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-      {label}
-    </p>
-  );
+  return <p className="section-kicker px-3 pt-5 pb-1">{label}</p>;
 }
 
 function NavItem({
@@ -68,9 +79,9 @@ function NavItem({
       onClick={onClick}
       className={({ isActive }) =>
         cn(
-          "flex items-center gap-3 rounded-md px-3 py-2 text-[14px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+          "flex min-h-11 items-center gap-3 rounded-md border border-transparent px-3 py-2 text-[14px] transition-colors",
           isActive
-            ? "bg-primary/10 font-medium text-foreground"
+            ? "border-border border-l-2 border-l-primary bg-card font-medium text-foreground shadow-sm"
             : "font-normal text-muted-foreground hover:bg-secondary hover:text-foreground",
         )
       }
@@ -84,17 +95,23 @@ function NavItem({
 function Nav({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav aria-label="Primary" className="flex flex-col gap-0.5">
-      <Section label="Marketplace" />
       <NavItem to="/" end icon={<LayoutDashboard size={17} strokeWidth={1.75} />} label="Today" onClick={onNavigate} />
-      <NavItem to="/sales" icon={<ChartLine size={17} strokeWidth={1.75} />} label="Revenue" onClick={onNavigate} />
-      <NavItem to="/sellers" icon={<Store size={17} strokeWidth={1.75} />} label="Sellers" onClick={onNavigate} />
-      <NavItem to="/ask" icon={<MessageCircle size={17} strokeWidth={1.75} />} label="Ask" onClick={onNavigate} />
-      <Section label="Fulfillment" />
-      <NavItem to="/operations" icon={<ClipboardList size={17} strokeWidth={1.75} />} label="Needs action" onClick={onNavigate} />
+      <Section label="Commerce" />
       <NavItem to="/orders" icon={<Rows3 size={17} strokeWidth={1.75} />} label="Orders" onClick={onNavigate} />
       <NavItem to="/new" icon={<Plus size={17} strokeWidth={1.75} />} label="Book order" onClick={onNavigate} />
-      <NavItem to="/documents" icon={<FileText size={17} strokeWidth={1.75} />} label="Briefs" onClick={onNavigate} />
-      <Section label="Trust" />
+      <NavItem to="/sales" icon={<ChartLine size={17} strokeWidth={1.75} />} label="Revenue" onClick={onNavigate} />
+      <NavItem to="/customers" icon={<Users size={17} strokeWidth={1.75} />} label="Customers" onClick={onNavigate} />
+      <Section label="Operations" />
+      <NavItem to="/sellers" icon={<Store size={17} strokeWidth={1.75} />} label="Sellers" onClick={onNavigate} />
+      <NavItem to="/inventory" icon={<Boxes size={17} strokeWidth={1.75} />} label="Inventory" onClick={onNavigate} />
+      <NavItem to="/operations" icon={<ClipboardList size={17} strokeWidth={1.75} />} label="Needs action" onClick={onNavigate} />
+      <Section label="Analytics" />
+      <NavItem to="/performance" icon={<Gauge size={17} strokeWidth={1.75} />} label="Performance" onClick={onNavigate} />
+      <NavItem to="/forecast" icon={<TrendingUp size={17} strokeWidth={1.75} />} label="Forecast" onClick={onNavigate} />
+      <Section label="Intelligence" />
+      <NavItem to="/ask" icon={<MessageCircle size={17} strokeWidth={1.75} />} label="Ask" onClick={onNavigate} />
+      <NavItem to="/documents" icon={<FileText size={17} strokeWidth={1.75} />} label="Documents" onClick={onNavigate} />
+      <Section label="Platform" />
       <NavItem to="/pipeline" icon={<ShieldCheck size={17} strokeWidth={1.75} />} label="How numbers are trusted" onClick={onNavigate} />
     </nav>
   );
@@ -104,7 +121,7 @@ function NotFound() {
   return (
     <div className="space-y-6">
       <PageHeader title="Page not found" question="This route is not part of the marketplace console." />
-      <Link to="/" className="inline-block text-[15px] font-medium hover:underline">
+      <Link to="/" className="text-link inline-block text-[15px] font-medium hover:underline">
         Go to Today
       </Link>
     </div>
@@ -120,7 +137,15 @@ export function AppShell() {
   const wasOpenRef = useRef(false);
 
   useEffect(() => {
-    const routeTitle = location.pathname.startsWith("/orders/") ? "Order detail" : ROUTE_TITLES[location.pathname];
+    const routeTitle = location.pathname.startsWith("/orders/")
+      ? "Order detail"
+      : location.pathname.startsWith("/sellers/")
+        ? "Seller detail"
+        : location.pathname.startsWith("/products/")
+          ? "Product detail"
+          : location.pathname.startsWith("/customers/")
+            ? "Customer detail"
+            : ROUTE_TITLES[location.pathname];
     document.title = `${routeTitle ?? "Page not found"} · Smart-ERP`;
     requestAnimationFrame(() => document.getElementById("page-title")?.focus());
   }, [location.pathname]);
@@ -178,7 +203,7 @@ export function AppShell() {
         <Link to="/" className="px-2 font-serif text-[1.35rem] tracking-tight text-foreground">
           Smart-ERP
         </Link>
-        <p className="mt-0.5 px-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+        <p className="mt-0.5 px-2 text-xs text-muted-foreground">
           India marketplace
         </p>
         <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
@@ -205,7 +230,7 @@ export function AppShell() {
               <button
                 ref={closeButtonRef}
                 type="button"
-                className="rounded-md p-3 text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                className="rounded-md p-3 text-muted-foreground"
                 aria-label="Close menu"
                 onClick={() => setOpen(false)}
               >
@@ -221,11 +246,11 @@ export function AppShell() {
       )}
 
       <div className="min-w-0 flex-1" aria-hidden={open || undefined}>
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm md:hidden">
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background px-4 py-3 md:hidden">
           <button
             ref={menuButtonRef}
             type="button"
-            className="rounded-md p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="rounded-md p-3"
             aria-label="Open menu"
             aria-expanded={open}
             aria-controls="mobile-navigation"
@@ -236,12 +261,19 @@ export function AppShell() {
           <span className="font-serif text-lg">Smart-ERP</span>
         </header>
         <main id="main" className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
-          <Suspense fallback={<TableSkeleton rows={8} cols={4} />}>
+          <Suspense fallback={<PageSkeleton />}>
             <Routes>
               <Route path="/" element={<Overview />} />
               <Route path="/ask" element={<Assistant />} />
               <Route path="/sales" element={<Sales />} />
               <Route path="/sellers" element={<Sellers />} />
+              <Route path="/sellers/:sellerId" element={<SellerDetail />} />
+              <Route path="/products/:productId" element={<ProductDetail />} />
+              <Route path="/customers" element={<Customers />} />
+              <Route path="/customers/:customerId" element={<CustomerDetail />} />
+              <Route path="/inventory" element={<Inventory />} />
+              <Route path="/performance" element={<Performance />} />
+              <Route path="/forecast" element={<Forecast />} />
               <Route path="/operations" element={<Operations />} />
               <Route path="/documents" element={<Documents />} />
               <Route path="/pipeline" element={<Pipeline />} />

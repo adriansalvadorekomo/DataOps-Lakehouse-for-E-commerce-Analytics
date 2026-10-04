@@ -65,6 +65,81 @@ def overview(session: Session) -> dict:
     }
 
 
+def _period_metrics(session: Session, start: datetime.date, end: datetime.date) -> dict:
+    sales = session.execute(
+        select(
+            func.count(func.distinct(Order.order_id)).label("orders"),
+            func.coalesce(func.sum(OrderItem.final_price), 0).label("revenue"),
+        )
+        .select_from(Order)
+        .join(OrderItem, OrderItem.order_id == Order.order_id)
+        .where(Order.order_date.between(start, end))
+    ).one()
+    status_rows = session.execute(
+        select(Order.delivery_status, func.count())
+        .where(Order.order_date.between(start, end))
+        .group_by(Order.delivery_status)
+    ).all()
+    by_status = dict(status_rows)
+    orders = int(sales.orders or 0)
+    revenue = float(sales.revenue or 0)
+    delivered = int(by_status.get("DELIVERED", 0))
+    delayed = int(by_status.get("DELAYED", 0))
+    returned = int(by_status.get("RETURNED", 0))
+    completed = delivered + delayed
+    return {
+        "revenue": revenue,
+        "orders": orders,
+        "aov": revenue / orders if orders else 0.0,
+        "return_rate": returned / orders if orders else 0.0,
+        "delayed_rate": delayed / completed if completed else 0.0,
+    }
+
+
+def _comparison(current: float, previous: float) -> dict:
+    change = current - previous
+    if abs(change) < 1e-9:
+        direction = "flat"
+    elif change > 0:
+        direction = "up"
+    else:
+        direction = "down"
+    return {
+        "current": current,
+        "previous": previous,
+        "absolute_change": change,
+        "relative_change": change / previous if previous else None,
+        "direction": direction,
+    }
+
+
+def performance_summary(session: Session, days: int = 90) -> dict:
+    as_of = session.execute(select(func.max(Order.order_date))).scalar()
+    if as_of is None:
+        return {
+            "as_of": None,
+            "days": days,
+            "current_period": None,
+            "previous_period": None,
+            "metrics": {},
+        }
+    current_start = as_of - datetime.timedelta(days=days - 1)
+    previous_end = current_start - datetime.timedelta(days=1)
+    previous_start = previous_end - datetime.timedelta(days=days - 1)
+    current = _period_metrics(session, current_start, as_of)
+    previous = _period_metrics(session, previous_start, previous_end)
+    return {
+        "as_of": as_of.isoformat(),
+        "days": days,
+        "current_period": {"start": current_start.isoformat(), "end": as_of.isoformat()},
+        "previous_period": {"start": previous_start.isoformat(), "end": previous_end.isoformat()},
+        "metrics": {
+            key: _comparison(float(current[key]), float(previous[key]))
+            for key in current
+        },
+    }
+
+
 def revenue_trend(session: Session, days: int = 30) -> list[dict]:
     """Revenue + order counts for the last N days WITH DATA (dense seed
     windows read as trailing days; a sparse live tail doesn't blank the chart)."""
@@ -205,8 +280,8 @@ def dq_checks(session: Session) -> list[dict]:
          "SELECT COUNT(*) FROM public.orders WHERE delivery_status NOT IN ('IN TRANSIT','DELIVERED','DELAYED','RETURNED')"),
         ("R6 quantity/discount/price ranges",
          "SELECT COUNT(*) FROM public.order_items WHERE quantity < 1 OR discount_pct < 0 OR discount_pct > 70 OR unit_price <= 0 OR final_price < 0"),
-        ("R7 order_date window",
-         "SELECT COUNT(*) FROM public.orders WHERE order_date < DATE '2024-03-31' OR order_date > DATE '2026-03-31'"),
+        ("R7 operational order dates",
+         "SELECT COUNT(*) FROM public.orders WHERE order_date < DATE '2024-03-31' OR order_date > CURRENT_DATE"),
     ]
     return [
         {"rule": name, "violations": session.execute(text(sql)).scalar() or 0}

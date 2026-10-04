@@ -1,11 +1,19 @@
+import { Check, Clock, RotateCcw, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DeliveryStatus } from "@/lib/api";
 
-const DOT: Record<DeliveryStatus, string> = {
-  "IN TRANSIT": "bg-muted-foreground",
-  DELIVERED: "bg-[var(--success)]",
-  DELAYED: "bg-primary",
-  RETURNED: "bg-destructive",
+const TONE: Record<DeliveryStatus, string> = {
+  "IN TRANSIT": "border-border bg-secondary text-secondary-foreground",
+  DELIVERED: "border-success/50 bg-card text-foreground",
+  DELAYED: "border-warning/60 bg-card text-foreground",
+  RETURNED: "border-destructive/50 bg-card text-foreground",
+};
+
+const ICON: Record<DeliveryStatus, typeof Check> = {
+  "IN TRANSIT": Truck,
+  DELIVERED: Check,
+  DELAYED: Clock,
+  RETURNED: RotateCcw,
 };
 
 const LABEL: Record<DeliveryStatus, string> = {
@@ -16,17 +24,19 @@ const LABEL: Record<DeliveryStatus, string> = {
 };
 
 export function StatusPill({ status, className }: { status: DeliveryStatus; className?: string }) {
-  const dot = DOT[status] ?? "bg-muted-foreground";
+  const tone = TONE[status] ?? TONE["IN TRANSIT"];
   const label = LABEL[status] ?? "Unknown status";
+  const Icon = ICON[status] ?? Truck;
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground",
+        "inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-1 text-[13px] font-medium",
+        tone,
         className,
       )}
     >
-      <span aria-hidden="true" className={cn("size-1.5 rounded-full", dot)} />
+      <Icon size={13} strokeWidth={2.25} aria-hidden="true" />
       {label}
     </span>
   );
