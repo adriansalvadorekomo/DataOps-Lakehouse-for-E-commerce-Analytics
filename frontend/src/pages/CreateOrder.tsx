@@ -28,8 +28,18 @@ function indiaLocalDate() {
   return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
+function formatIndiaDate(value: string) {
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Kolkata",
+  }).format(new Date(`${value}T00:00:00+05:30`));
+}
+
 export default function CreateOrder() {
   const nav = useNavigate();
+  const orderDate = indiaLocalDate();
   const [customerId, setCustomerId] = useState("");
   const [city, setCity] = useState<(typeof CITIES)[number]>(CITIES[0]);
   const [payment, setPayment] = useState<(typeof PAYMENT_METHODS)[number]>(PAYMENT_METHODS[0]);
@@ -38,32 +48,33 @@ export default function CreateOrder() {
   const [lines, setLines] = useState<OrderItemCreate[]>([{ ...EMPTY_LINE }]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const validationShown = error?.startsWith("Line ") || error === "Customer ID is required." || error?.startsWith("Shipping time");
 
-  function setLine(i: number, patch: Partial<OrderItemCreate>) {
-    setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  function setLine(index: number, patch: Partial<OrderItemCreate>) {
+    setLines((current) => current.map((line, lineIndex) => (lineIndex === index ? { ...line, ...patch } : line)));
   }
 
   const estimate = lines.reduce(
-    (s, l) => s + estimatedLineTotal(Number(l.unit_price) || 0, Number(l.quantity) || 0, Number(l.discount_pct) || 0),
+    (sum, line) => sum + estimatedLineTotal(Number(line.unit_price) || 0, Number(line.quantity) || 0, Number(line.discount_pct) || 0),
     0,
   );
 
   function validationError() {
     if (!customerId.trim()) return "Customer ID is required.";
     if (!Number.isInteger(shipDays) || shipDays < 1 || shipDays > 6) return "Shipping time must be a whole number from 1 to 6 days.";
-    for (let i = 0; i < lines.length; i += 1) {
-      const line = lines[i];
-      if (!line.product_id.trim()) return `Line ${i + 1}: Product is required.`;
-      if (!line.seller_id.trim()) return `Line ${i + 1}: Seller is required.`;
-      if (!Number.isInteger(Number(line.quantity)) || Number(line.quantity) < 1) return `Line ${i + 1}: Quantity must be a whole number of at least 1.`;
-      if (!Number.isFinite(Number(line.unit_price)) || Number(line.unit_price) < 0.01) return `Line ${i + 1}: Unit price must be at least ₹0.01.`;
-      if (!Number.isFinite(Number(line.discount_pct)) || Number(line.discount_pct) < 0 || Number(line.discount_pct) > 70) return `Line ${i + 1}: Discount must be from 0% to 70%.`;
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
+      if (!line.product_id.trim()) return `Line ${index + 1}: Product is required.`;
+      if (!line.seller_id.trim()) return `Line ${index + 1}: Seller is required.`;
+      if (!Number.isInteger(Number(line.quantity)) || Number(line.quantity) < 1) return `Line ${index + 1}: Quantity must be a whole number of at least 1.`;
+      if (!Number.isFinite(Number(line.unit_price)) || Number(line.unit_price) < 0.01) return `Line ${index + 1}: Unit price must be at least ₹0.01.`;
+      if (!Number.isFinite(Number(line.discount_pct)) || Number(line.discount_pct) < 0 || Number(line.discount_pct) > 70) return `Line ${index + 1}: Discount must be from 0% to 70%.`;
     }
     return null;
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
     const validation = validationError();
     if (validation) {
       setError(validation);
@@ -74,23 +85,23 @@ export default function CreateOrder() {
     try {
       const order = await api.createOrder({
         customer_id: customerId.trim(),
-        order_date: indiaLocalDate(),
+        order_date: orderDate,
         ship_to_city: city,
         payment_method: payment,
         device,
         shipping_time_days: shipDays,
-        items: lines.map((l) => ({
-          ...l,
-          product_id: l.product_id.trim(),
-          seller_id: l.seller_id.trim(),
-          quantity: Number(l.quantity),
-          unit_price: Number(l.unit_price),
-          discount_pct: Number(l.discount_pct),
+        items: lines.map((line) => ({
+          ...line,
+          product_id: line.product_id.trim(),
+          seller_id: line.seller_id.trim(),
+          quantity: Number(line.quantity),
+          unit_price: Number(line.unit_price),
+          discount_pct: Number(line.discount_pct),
         })),
       });
       nav(`/orders/${order.order_id}`);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not book the order");
+    } catch (submitError) {
+      setError(submitError instanceof ApiError ? submitError.message : "Could not book the order");
     } finally {
       setBusy(false);
     }
@@ -98,101 +109,92 @@ export default function CreateOrder() {
 
   return (
     <div className="space-y-6">
-      <Link to="/orders" className="inline-flex items-center gap-1 text-[15px] hover:underline">
+      <Link to="/orders" className="inline-flex min-h-11 items-center gap-1 text-[15px] hover:underline">
         <ArrowLeft size={16} /> Orders
       </Link>
       <PageHeader
+        eyebrow="Order operations"
         title="Book order"
-        question="Enter each sale unit price. The server computes and persists the final paid amount and inventory update; the estimate below is only a preview."
+        question="Enter each sale unit price. The server computes and records the final paid amount and inventory update."
       />
 
       <Card>
         <CardContent className="pt-6">
-          <form onSubmit={submit} className="space-y-6" noValidate>
+          <form onSubmit={submit} className="space-y-6" noValidate aria-describedby={error ? "order-error" : undefined}>
             <fieldset disabled={busy} className="space-y-6">
               <legend className="sr-only">Order details</legend>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Field label="Order date" htmlFor="order-date">
+                  <div>
+                    <Input id="order-date" className="h-11" value={formatIndiaDate(orderDate)} readOnly />
+                    <p className="mt-1 text-xs text-muted-foreground">Recorded as today in India.</p>
+                  </div>
+                </Field>
                 <Field label="Customer ID" htmlFor="customer">
-                  <Input id="customer" value={customerId} onChange={(e) => setCustomerId(e.target.value)} required autoComplete="off" />
+                  <Input id="customer" className="h-11" value={customerId} onChange={(event) => setCustomerId(event.target.value)} required autoComplete="off" aria-invalid={validationShown && !customerId.trim()} />
                 </Field>
                 <Field label="Ship to city" htmlFor="city">
-                  <Select id="city" value={city} onChange={(e) => setCity(e.target.value as (typeof CITIES)[number])}>
-                    {CITIES.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
+                  <Select id="city" className="h-11" value={city} onChange={(event) => setCity(event.target.value as (typeof CITIES)[number])}>
+                    {CITIES.map((value) => <option key={value} value={value}>{value}</option>)}
                   </Select>
                 </Field>
                 <Field label="Payment" htmlFor="payment">
-                  <Select id="payment" value={payment} onChange={(e) => setPayment(e.target.value as (typeof PAYMENT_METHODS)[number])}>
-                    {PAYMENT_METHODS.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
+                  <Select id="payment" className="h-11" value={payment} onChange={(event) => setPayment(event.target.value as (typeof PAYMENT_METHODS)[number])}>
+                    {PAYMENT_METHODS.map((value) => <option key={value} value={value}>{value}</option>)}
                   </Select>
                 </Field>
                 <Field label="Device" htmlFor="device">
-                  <Select id="device" value={device} onChange={(e) => setDevice(e.target.value as (typeof DEVICES)[number])}>
-                    {DEVICES.map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
+                  <Select id="device" className="h-11" value={device} onChange={(event) => setDevice(event.target.value as (typeof DEVICES)[number])}>
+                    {DEVICES.map((value) => <option key={value} value={value}>{value}</option>)}
                   </Select>
                 </Field>
                 <Field label="Shipping time (days)" htmlFor="ship">
-                  <Input id="ship" type="number" min={1} max={6} step={1} value={shipDays} onChange={(e) => setShipDays(Number(e.target.value))} required />
+                  <Input id="ship" className="h-11" type="number" min={1} max={6} step={1} value={shipDays} onChange={(event) => setShipDays(Number(event.target.value))} required aria-invalid={validationShown && (!Number.isInteger(shipDays) || shipDays < 1 || shipDays > 6)} />
                 </Field>
               </div>
 
               <div className="space-y-4">
-                <p className="text-[13px] font-medium text-muted-foreground">Lines</p>
-                {lines.map((line, i) => (
-                  <section key={i} aria-labelledby={`line-${i}-title`} className="space-y-2 rounded-md border border-border p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <h2 id={`line-${i}-title`} className="text-[15px] font-medium">Line {i + 1}</h2>
-                      {lines.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Remove line ${i + 1}`}
-                          onClick={() => setLines((current) => current.filter((_, index) => index !== i))}
-                        >
-                          <Trash2 />
-                        </Button>
-                      )}
-                    </div>
-                    <div className="grid gap-2 md:grid-cols-5">
-                      <Field label="Product" htmlFor={`p-${i}`}>
-                        <Input id={`p-${i}`} value={line.product_id} onChange={(e) => setLine(i, { product_id: e.target.value })} required />
-                      </Field>
-                      <Field label="Seller" htmlFor={`s-${i}`}>
-                        <Input id={`s-${i}`} value={line.seller_id} onChange={(e) => setLine(i, { seller_id: e.target.value })} required />
-                      </Field>
-                      <Field label="Quantity" htmlFor={`q-${i}`}>
-                        <Input id={`q-${i}`} type="number" min={1} step={1} value={line.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} required />
-                      </Field>
-                      <Field label="Unit price ₹" htmlFor={`u-${i}`}>
-                        <Input id={`u-${i}`} type="number" min={0.01} step="0.01" value={line.unit_price} onChange={(e) => setLine(i, { unit_price: Number(e.target.value) })} required />
-                      </Field>
-                      <Field label="Discount %" htmlFor={`d-${i}`}>
-                        <Input id={`d-${i}`} type="number" min={0} max={70} step="0.01" value={line.discount_pct} onChange={(e) => setLine(i, { discount_pct: Number(e.target.value) })} required />
-                      </Field>
-                    </div>
-                  </section>
-                ))}
-                <Button type="button" variant="outline" onClick={() => setLines((ls) => [...ls, { ...EMPTY_LINE }])}>
-                  Add line
-                </Button>
+                <div>
+                  <h2 className="text-[15px] font-medium">Order lines</h2>
+                  <p className="mt-1 text-[13px] text-muted-foreground">Enter exact product and seller IDs. ID lookup is not available here.</p>
+                </div>
+                {lines.map((line, index) => {
+                  const lineHasError = validationShown && error?.startsWith(`Line ${index + 1}:`);
+                  return (
+                    <section key={index} aria-labelledby={`line-${index}-title`} className="space-y-4 border border-border p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 id={`line-${index}-title`} className="text-[15px] font-medium">Line {index + 1}</h3>
+                        {lines.length > 1 && (
+                          <Button type="button" variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Remove line ${index + 1}`} onClick={() => setLines((current) => current.filter((_, lineIndex) => lineIndex !== index))}>
+                            <Trash2 />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                        <Field label="Product ID" htmlFor={`p-${index}`}><Input id={`p-${index}`} className="h-11" value={line.product_id} onChange={(event) => setLine(index, { product_id: event.target.value })} required aria-invalid={lineHasError && !line.product_id.trim()} /></Field>
+                        <Field label="Seller ID" htmlFor={`s-${index}`}><Input id={`s-${index}`} className="h-11" value={line.seller_id} onChange={(event) => setLine(index, { seller_id: event.target.value })} required aria-invalid={lineHasError && !line.seller_id.trim()} /></Field>
+                        <Field label="Quantity" htmlFor={`q-${index}`}><Input id={`q-${index}`} className="h-11" type="number" min={1} step={1} value={line.quantity} onChange={(event) => setLine(index, { quantity: Number(event.target.value) })} required aria-invalid={lineHasError && (!Number.isInteger(Number(line.quantity)) || Number(line.quantity) < 1)} /></Field>
+                        <Field label="Unit price ₹" htmlFor={`u-${index}`}><Input id={`u-${index}`} className="h-11" type="number" min={0.01} step="0.01" value={line.unit_price || ""} onChange={(event) => setLine(index, { unit_price: Number(event.target.value) })} required aria-invalid={lineHasError && Number(line.unit_price) < 0.01} /></Field>
+                        <Field label="Discount %" htmlFor={`d-${index}`}><Input id={`d-${index}`} className="h-11" type="number" min={0} max={70} step="0.01" value={line.discount_pct} onChange={(event) => setLine(index, { discount_pct: Number(event.target.value) })} required aria-invalid={lineHasError && (Number(line.discount_pct) < 0 || Number(line.discount_pct) > 70)} /></Field>
+                      </div>
+                    </section>
+                  );
+                })}
+                <Button type="button" className="min-h-11" variant="outline" onClick={() => setLines((current) => [...current, { ...EMPTY_LINE }])}>Add line</Button>
               </div>
             </fieldset>
 
-            <p className="font-mono text-[15px] tabular-nums">
-              Estimate {formatINR(estimate)} <span className="font-sans text-muted-foreground">· server is the source of truth</span>
-            </p>
+            <div className="flex flex-col gap-4 border-y border-border bg-card py-4 lg:sticky lg:bottom-0 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-[13px] font-medium text-muted-foreground">Estimated line total</p>
+                <p className="text-xl font-semibold tabular-nums">{formatINR(estimate)}</p>
+                <p className="text-xs text-muted-foreground">Preview only. The server is the source of truth.</p>
+              </div>
+              <Button type="submit" className="min-h-11" disabled={busy}>{busy ? "Booking…" : "Book order"}</Button>
+            </div>
 
-            {error && <p role="alert" className="text-[15px] text-destructive">{error}</p>}
+            {error && <p id="order-error" role="alert" className="border-l-2 border-destructive pl-3 text-[15px] text-destructive">{error}</p>}
             <p role="status" aria-live="polite" className="sr-only">{busy ? "Booking order" : ""}</p>
-            <Button type="submit" disabled={busy}>
-              {busy ? "Booking…" : "Book order"}
-            </Button>
           </form>
         </CardContent>
       </Card>

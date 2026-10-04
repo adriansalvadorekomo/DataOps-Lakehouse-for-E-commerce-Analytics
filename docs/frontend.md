@@ -16,23 +16,32 @@ All backend paths below are stable paths prefixed by the frontend API base (`/ap
 
 | Route | Stakeholder label | Business purpose | Actual backend calls |
 |---|---|---|---|
-| `/` | Today | Marketplace health, revenue outlook, geographic and seller attention | `GET /stats/overview`, `GET /stats/revenue-trend?days=90`, `GET /stats/forecast?trailing=90`, `GET /stats/pareto`, `GET /stats/city-performance`, `GET /stats/seller-performance?limit=20`, `GET /stats/revenue-by-category` |
-| `/ask` | Ask | Ask governed questions using Live books, Briefs, or Databricks | `POST /ai/ask`, `POST /ai/ask-docs`, `POST /ai/ask-genie` |
+| `/` | Today | Marketplace performance with equal-period comparisons, revenue outlook, and attention | `GET /stats/performance-summary?days={30|90|365}`, `GET /stats/overview`, `GET /stats/revenue-trend`, `GET /stats/forecast`, `GET /stats/pareto`, `GET /stats/city-performance`, `GET /stats/seller-performance`, `GET /stats/revenue-by-category` |
+| `/ask` | Ask | Ask governed questions using Live books, Documents, or Databricks | `GET /trust/status`, `POST /ai/ask`, `POST /ai/ask-docs`, `POST /ai/ask-genie` |
 | `/sales` | Revenue | Revenue drivers, category movement, city performance, discount bands, and sellers | `GET /stats/category-trend`, `GET /stats/city-performance`, `GET /stats/discount-bands`, `GET /stats/seller-performance` |
 | `/sellers` | Sellers | Seller performance and attention flags | `GET /stats/seller-performance` |
 | `/operations` | Needs action | Fulfillment, stock, and data-quality exceptions | `GET /stats/city-performance`, `GET /stats/stock-critical`, `GET /stats/dq-checks` |
 | `/orders` | Orders | Find and filter operational orders | `GET /orders` |
 | `/orders/:id` | Order detail | Inspect and transition one order | `GET /orders/{id}`, `PATCH /orders/{id}/status` |
 | `/new` | Book order | Submit an operational order | `POST /orders` |
-| `/documents` | Briefs | Attach, process, search, and remove grounding files | `GET /documents`, `POST /documents`, `POST /documents/search`, `DELETE /documents/{id}` |
-| `/pipeline` | How numbers are trusted | Explain live integrity checks and the latest manually recorded Databricks validation | `GET /stats/overview`, `GET /stats/dq-checks` |
+| `/documents` | Documents | Attach, process, search, and remove grounding files | `GET /documents`, `POST /documents`, `POST /documents/search`, `DELETE /documents/{id}` |
+| `/pipeline` | How numbers are trusted | Explain live integrity, real Databricks workflow evidence, forecast freshness, AI readiness, and dated Gold validation | `GET /trust/status` |
+| `/customers` | Customers | Revenue concentration and customer lookup | `GET /stats/pareto` |
+| `/customers/:id` | Customer detail | Returned orders, paid total, return rate, cities | `GET /orders?customer_id=&limit=100` |
+| `/sellers/:id` | Seller detail | Commercial, operational and screening-rule context | `GET /stats/seller-performance?limit=200` |
+| `/products/:id` | Product detail | Stock position and estimated revenue exposure | `GET /stats/stock-critical?limit=200` |
+| `/inventory` | Inventory | Health bands, exposure estimates, sortable review list | `GET /stats/stock-critical?limit=200` |
+| `/performance` | Performance | Window comparison, category momentum, metro and seller breakdowns | `GET /stats/performance-summary`, `GET /stats/category-trend`, `GET /stats/city-performance`, `GET /stats/seller-performance` |
+| `/forecast` | Forecast | Batch outlook vs actuals, freshness, assumptions | `GET /stats/forecast`, `GET /trust/status` |
+
+Entity detail pages recompose existing endpoints; gaps (seller/product order drill-down, lifetime customer totals, filtered stats) are specified in [`docs/data-access-contracts.md`](data-access-contracts.md) and surfaced in-product as notices, never fabricated.
 
 ## Ask modes
 
 The interface uses stakeholder labels while retaining distinct technical engines:
 
 - **Live books** calls `POST /ai/ask`. It is deterministic, uses no LLM, and computes supported answers from committed orders, stats, and forecast services.
-- **Briefs** calls `POST /ai/ask-docs`. Retrieval and synthesis are grounded only in attached files; without grounding it reports that it cannot answer from the documents.
+- **Documents** calls `POST /ai/ask-docs`. Retrieval and synthesis are grounded only in attached files; without grounding it reports that it cannot answer from the documents.
 - **Databricks** calls `POST /ai/ask-genie`. Genie creates SQL for each question against published Gold data and returns the answer, SQL, rows, and source metadata.
 
 Ask answers are stateless and never perform actions. Technical evidence such as SQL, endpoint paths, parameters, passages, chunks, and scores remains available through optional disclosures.
@@ -41,11 +50,15 @@ Ask answers are stateless and never perform actions. Technical evidence such as 
 
 The booking form submits each line's unit price, quantity, and discount percentage. The server validates the request, computes and persists `final_price`, creates the order and lines, and records the corresponding inventory transaction. The frontend does not claim to fetch or enforce catalog pricing.
 
-## Databricks validation snapshot
+## Performance comparisons
 
-`BACKFILL` in `frontend/src/lib/constants.ts` is a manually maintained, static validation snapshot. It records the last known validated Bronze, Silver, and Gold counts and revenue for stakeholder context; it is not a live Databricks status feed.
+`GET /stats/performance-summary` anchors its current window to the latest order date and compares it with the immediately preceding equal-length window. The backend owns revenue, order, AOV, return-rate, and delayed-rate calculations plus absolute and relative changes. When the previous value is zero, relative change is `null`; the frontend does not manufacture a percentage.
 
-The browser contains no Databricks personal access token (PAT) and does not poll workspace jobs or workflows. The Pipeline page's live calls cover PostgreSQL overview and mirrored data-quality rules only. Operators follow the outbound workspace link and authenticate there when they need current workflow state.
+## Trust architecture
+
+`GET /trust/status` composes four separate evidence layers: live PostgreSQL integrity checks, latest Databricks workflow metadata, forecast freshness, and Genie configuration. The backend calls the Databricks Jobs API using server-side credentials, normalizes technical results into business impact, and degrades safely when the workspace or permission is unavailable.
+
+The dated Gold contract validation remains a distinct snapshot. A successful workflow run confirms processing completed; it does not by itself replace the documented row-count and revenue validation. The browser contains no Databricks personal access token (PAT), never calls workspace APIs directly, and receives no raw credentials or privileged error details.
 
 ## Data flow
 

@@ -8,6 +8,12 @@ export const DEVICES = ["Mobile App", "Web", "Tablet"] as const;
 
 export const CATEGORIES = ["Electronics", "Home", "Sports", "Beauty", "Clothing"] as const;
 
+export const SELLER_ATTENTION = {
+  ratingBelow: 3.5,
+  delayedAbove: 0.6,
+  returnsAbove: 0.2,
+} as const;
+
 /** Documented Free Edition workspace — outbound only; the browser holds no token. */
 export const WORKSPACE_URL = "https://dbc-cba3c27a-ade0.cloud.databricks.com";
 
@@ -62,9 +68,9 @@ export const DQ_COPY: Record<string, { title: string; detail: string }> = {
     title: "Quantities, discounts and prices are in range",
     detail: "Quantity at least 1; discount 0–70%; prices are positive.",
   },
-  "R7 order_date window": {
-    title: "Order dates sit in the trading window",
-    detail: "31 Mar 2024 through 31 Mar 2026.",
+  "R7 operational order dates": {
+    title: "Order dates are operationally plausible",
+    detail: "No order predates the marketplace history or sits in the future.",
   },
 };
 

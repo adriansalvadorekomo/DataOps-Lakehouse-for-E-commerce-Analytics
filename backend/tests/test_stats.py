@@ -68,8 +68,41 @@ def test_trend_days_bounds(client):
     assert client.get("/stats/revenue-trend", params={"days": 400}).status_code == 422
 
 
+def test_performance_summary_compares_equal_windows(client):
+    _order(client, order_date="2024-04-01")
+    _order(client, order_date="2024-04-08")
+    _order(client, order_date="2024-04-08")
+
+    response = client.get("/stats/performance-summary", params={"days": 7})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["as_of"] == "2024-04-08"
+    assert body["current_period"] == {"start": "2024-04-02", "end": "2024-04-08"}
+    assert body["previous_period"] == {"start": "2024-03-26", "end": "2024-04-01"}
+    revenue = body["metrics"]["revenue"]
+    orders = body["metrics"]["orders"]
+    assert revenue["current"] == 1800.0
+    assert revenue["previous"] == 900.0
+    assert revenue["relative_change"] == 1.0
+    assert revenue["direction"] == "up"
+    assert orders["current"] == 2.0
+    assert orders["previous"] == 1.0
+
+
+def test_performance_summary_has_no_fake_delta_without_previous_data(client):
+    _order(client, order_date="2024-04-08")
+    body = client.get("/stats/performance-summary", params={"days": 7}).json()
+    assert body["metrics"]["revenue"]["previous"] == 0.0
+    assert body["metrics"]["revenue"]["relative_change"] is None
+
+
+def test_live_dq_accepts_current_operational_orders(client):
+    _order(client)
+    checks = {c["rule"]: c["violations"] for c in client.get("/stats/dq-checks").json()}
+    assert checks["R7 operational order dates"] == 0
+
+
 def test_gold_kpi_endpoints(client):
-    # In-window date so the R7 gate stays green over test data.
     _order(client, order_date="2024-04-01")
 
     bands = client.get("/stats/discount-bands").json()

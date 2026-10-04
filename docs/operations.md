@@ -78,12 +78,13 @@ PGDATABASE=smart
 DATABRICKS_HOST=https://dbc-cba3c27a-ade0.cloud.databricks.com
 DATABRICKS_TOKEN=<your-personal-access-token>
 
-# Databricks job / validation
+# Databricks job / validation / stakeholder trust
 WAREHOUSE_ID=7a0f4f9c083ec2c4
 LAKEHOUSE_CATALOG=workspace
+GENIE_SPACE_ID=<smart-erp-gold-space-id>
 ```
 
-The `PG*` variables have defaults in `mise.toml` — you only need to set them in `.env` if your machine uses different values. The Databricks variables have no defaults and must be set to use any `dbx-*` or `tf-*` task.
+The `PG*` variables have defaults in `mise.toml` — you only need to set them in `.env` if your machine uses different values. The Databricks variables have no defaults. `DATABRICKS_HOST` and `DATABRICKS_TOKEN` let the backend read the latest `smart-erp-medallion` workflow status for `GET /trust/status`; failures are normalized and no credential is returned to the browser. `GENIE_SPACE_ID` enables Databricks-mode questions against the existing Smart-ERP Gold Genie Space. `WAREHOUSE_ID` remains operator/CD configuration for read-only Gold validation.
 
 ### Required for Databricks tasks
 
