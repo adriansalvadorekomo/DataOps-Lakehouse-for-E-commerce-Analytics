@@ -118,7 +118,7 @@ smart-erp/
 │   ├── pages/                   Dashboard pages (Overview, Orders, Sales, Sellers, ...)
 │   ├── components/              Reusable UI components (AppShell, PageHeader, ...)
 │   ├── lib/                     API client (api.ts), utilities, constants
-│   └── index.css                Global styles (Geist + Instrument Serif)
+│   └── index.css                Design tokens, premium palette, console shell (sans-first)
 │
 ├── lakehouse/
 │   ├── src/

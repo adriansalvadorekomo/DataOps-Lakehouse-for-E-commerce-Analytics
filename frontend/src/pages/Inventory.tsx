@@ -31,7 +31,7 @@ export default function Inventory() {
   }, "asc");
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Stock below the review line"
         title="Inventory"
@@ -48,7 +48,7 @@ export default function Inventory() {
       ) : (
         <>
           <section aria-label="Inventory health">
-            <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <Metric
                 label="Critical · 5 units or fewer"
                 value={critical.length.toLocaleString("en-IN")}
@@ -69,7 +69,7 @@ export default function Inventory() {
                 interpretation="Price times stock across the set — a review estimate, not a booked figure."
               />
             </div>
-            <Card className="mt-4 shadow-none">
+            <Card className="mt-4">
               <CardContent>
                 <MeterRow
                   label="Share of the set at critical levels"
@@ -83,7 +83,7 @@ export default function Inventory() {
           </section>
 
           <section aria-labelledby="review-heading" className="space-y-3">
-            <h2 id="review-heading" className="font-serif text-xl">Review list</h2>
+            <h2 id="review-heading" className="section-title">Review list</h2>
             <Card className="overflow-hidden">
               <CardHeader>
                 <CardTitle>Thinnest stock first · up to {LIMIT} products</CardTitle>

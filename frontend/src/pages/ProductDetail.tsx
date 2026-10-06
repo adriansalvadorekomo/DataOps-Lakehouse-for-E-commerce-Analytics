@@ -35,7 +35,7 @@ export default function ProductDetail() {
         {backLink}
         <PageHeader title="Product outside the low-stock set" question={`${productId} holds 20 or more units in the latest snapshot, so it sits outside inventory review.`} />
         <p className="max-w-2xl text-[15px] text-muted-foreground">
-          Product revenue history and order-level drill-down arrive with the product summary contract (phase 2).
+          Product revenue history and order-level drill-down aren&apos;t available yet.
         </p>
         <Link to="/inventory" className="text-link inline-flex min-h-11 items-center text-[15px] font-medium hover:underline">
           Back to Inventory
@@ -47,7 +47,7 @@ export default function ProductDetail() {
   const exposure = row.current_price * row.latest_stock;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {backLink}
       <EntityHeader
         title={row.product_id}
@@ -62,10 +62,10 @@ export default function ProductDetail() {
       />
 
       <section aria-labelledby="exposure-heading">
-        <Card className="shadow-none">
+        <Card>
           <CardHeader><CardTitle>Stock position</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <p className="max-w-2xl text-[15px] leading-relaxed">
+            <p className="max-w-2xl text-sm leading-relaxed">
               {row.latest_stock <= 5
                 ? "Stock is at or below 5 units — confirm inbound supply before promising delivery dates."
                 : "Stock sits below the 20-unit review line — confirm demand and inbound supply before reordering."}
@@ -78,9 +78,9 @@ export default function ProductDetail() {
       </section>
 
       <section aria-labelledby="related-heading">
-        <h2 id="related-heading" className="mb-2 font-serif text-xl">Related</h2>
+        <h2 id="related-heading" className="mb-2 section-title">Related</h2>
         <p className="max-w-2xl text-[15px] text-muted-foreground">
-          Product revenue history and order-level drill-down arrive with the product summary contract (phase 2).
+          Product revenue history and order-level drill-down aren&apos;t available yet.
         </p>
         <div className="mt-1 flex flex-wrap gap-x-6 gap-y-2">
           <Link to="/inventory" className="text-link inline-flex min-h-11 items-center text-[15px] font-medium hover:underline">

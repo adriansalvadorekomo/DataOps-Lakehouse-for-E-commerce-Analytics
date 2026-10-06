@@ -53,7 +53,7 @@ export default function Forecast() {
   const horizon = futureDates.length;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Batch outlook, not live output"
         title="Forecast"
@@ -70,7 +70,7 @@ export default function Forecast() {
       ) : (
         <>
           <section aria-label="Outlook summary">
-            <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <Metric
                 label="Expected revenue · outlook window"
                 value={rfRows.length > 0 ? formatINR(expectedRf, 0) : "—"}
@@ -123,7 +123,7 @@ export default function Forecast() {
           </p>
 
           <section aria-labelledby="assumptions-heading" className="space-y-3">
-            <h2 id="assumptions-heading" className="font-serif text-xl">Assumptions</h2>
+            <h2 id="assumptions-heading" className="section-title">Assumptions</h2>
             <Disclosure summary="How this outlook was produced">
               <ul className="ml-5 list-disc space-y-1.5">
                 <li>Two batch models (statistical and trend) project from a trailing window; they do not react to today&apos;s orders.</li>
@@ -144,8 +144,7 @@ export default function Forecast() {
       <Disclosure summary="Where does this outlook come from?">
         <ol className="ml-5 list-decimal space-y-1.5">
           <li>
-            This page reads <span className="evidence">GET /stats/forecast</span>, served from the{" "}
-            <span className="evidence">revenue_forecasts</span> batch table — not a live computation.
+            This outlook is stored, not live — projections saved by the forecasting run, not fresh calculations.
           </li>
           <li>A scheduled job fits two models over trailing actual revenue and stores one row per model per target date.</li>
           <li>Actuals are committed marketplace records, the same book behind every other dashboard.</li>

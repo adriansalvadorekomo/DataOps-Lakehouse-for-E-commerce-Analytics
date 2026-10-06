@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Trash2 } from "lucide-react";
 import { ApiError, api, formatINR, type OrderItemCreate } from "@/lib/api";
 import { CITIES, DEVICES, PAYMENT_METHODS, estimatedLineTotal } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Field, PageHeader } from "@/components/PageHeader";
+import { Field } from "@/components/PageHeader";
 
 const EMPTY_LINE: OrderItemCreate = {
   product_id: "",
@@ -112,17 +112,36 @@ export default function CreateOrder() {
       <Link to="/orders" className="inline-flex min-h-11 items-center gap-1 text-[15px] hover:underline">
         <ArrowLeft size={16} /> Orders
       </Link>
-      <PageHeader
-        eyebrow="Order operations"
-        title="Book order"
-        question="Enter each sale unit price. The server computes and records the final paid amount and inventory update."
-      />
+      <section aria-labelledby="page-title" className="panel overflow-hidden">
+        <div className="px-4 pt-4 sm:px-5">
+          <p className="section-kicker">Commerce · Order workspace</p>
+          <h1 id="page-title" tabIndex={-1} className="mt-1 text-2xl font-semibold tracking-tight text-foreground outline-none">
+            Book order
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Enter each sale unit price. Final amounts are calculated when you book.</p>
+        </div>
+        <dl className="mt-4 grid grid-cols-2 divide-x divide-border border-y border-border bg-muted/40 sm:grid-cols-3">
+          <div className="min-w-0 px-4 py-3 sm:px-5">
+            <dt className="section-kicker">Order date</dt>
+            <dd className="mt-1 truncate text-sm font-semibold tabular-nums">{formatIndiaDate(orderDate)}</dd>
+          </div>
+          <div className="min-w-0 px-4 py-3 sm:px-5">
+            <dt className="section-kicker">Order lines</dt>
+            <dd className="mt-1 truncate font-mono text-sm font-semibold tabular-nums">{lines.length}</dd>
+          </div>
+          <div className="hidden min-w-0 px-4 py-3 sm:block sm:px-5">
+            <dt className="section-kicker">Customer</dt>
+            <dd className="mt-1 truncate text-sm font-semibold">{customerId.trim() || "—"}</dd>
+          </div>
+        </dl>
+      </section>
 
-      <Card>
-        <CardContent className="pt-6">
-          <form onSubmit={submit} className="space-y-6" noValidate aria-describedby={error ? "order-error" : undefined}>
-            <fieldset disabled={busy} className="space-y-6">
-              <legend className="sr-only">Order details</legend>
+      <form onSubmit={submit} className="space-y-6" noValidate aria-describedby={error ? "order-error" : undefined}>
+        <fieldset disabled={busy} className="space-y-6">
+          <legend className="sr-only">Order details</legend>
+          <Card>
+            <CardHeader><CardTitle>Order details</CardTitle></CardHeader>
+            <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <Field label="Order date" htmlFor="order-date">
                   <div>
@@ -152,23 +171,30 @@ export default function CreateOrder() {
                   <Input id="ship" className="h-11" type="number" min={1} max={6} step={1} value={shipDays} onChange={(event) => setShipDays(Number(event.target.value))} required aria-invalid={validationShown && (!Number.isInteger(shipDays) || shipDays < 1 || shipDays > 6)} />
                 </Field>
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-[15px] font-medium">Order lines</h2>
-                  <p className="mt-1 text-[13px] text-muted-foreground">Enter exact product and seller IDs. ID lookup is not available here.</p>
-                </div>
+          <Card className="overflow-hidden">
+            <CardHeader>
+              <CardTitle>Order lines · {lines.length}</CardTitle>
+              <p className="text-[13px] text-muted-foreground">Enter exact product and seller IDs. ID lookup is not available here.</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
                 {lines.map((line, index) => {
                   const lineHasError = validationShown && error?.startsWith(`Line ${index + 1}:`);
+                  const lineEstimate = estimatedLineTotal(Number(line.unit_price) || 0, Number(line.quantity) || 0, Number(line.discount_pct) || 0);
                   return (
-                    <section key={index} aria-labelledby={`line-${index}-title`} className="space-y-4 border border-border p-4">
+                    <section key={index} aria-labelledby={`line-${index}-title`} className="panel space-y-4 p-4">
                       <div className="flex items-center justify-between gap-2">
-                        <h3 id={`line-${index}-title`} className="text-[15px] font-medium">Line {index + 1}</h3>
-                        {lines.length > 1 && (
-                          <Button type="button" variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Remove line ${index + 1}`} onClick={() => setLines((current) => current.filter((_, lineIndex) => lineIndex !== index))}>
-                            <Trash2 />
-                          </Button>
-                        )}
+                        <h3 id={`line-${index}-title`} className="text-sm font-semibold">Line {index + 1}</h3>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-sm font-semibold tabular-nums" title="Line estimate — final amounts are calculated when you book">{formatINR(lineEstimate)}</span>
+                          {lines.length > 1 && (
+                            <Button type="button" variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Remove line ${index + 1}`} onClick={() => setLines((current) => current.filter((_, lineIndex) => lineIndex !== index))}>
+                              <Trash2 />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                         <Field label="Product ID" htmlFor={`p-${index}`}><Input id={`p-${index}`} className="h-11" value={line.product_id} onChange={(event) => setLine(index, { product_id: event.target.value })} required aria-invalid={lineHasError && !line.product_id.trim()} /></Field>
@@ -181,23 +207,29 @@ export default function CreateOrder() {
                   );
                 })}
                 <Button type="button" className="min-h-11" variant="outline" onClick={() => setLines((current) => [...current, { ...EMPTY_LINE }])}>Add line</Button>
-              </div>
-            </fieldset>
+            </CardContent>
+          </Card>
+          </fieldset>
 
-            <div className="flex flex-col gap-4 border-y border-border bg-card py-4 lg:sticky lg:bottom-0 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-[13px] font-medium text-muted-foreground">Estimated line total</p>
-                <p className="text-xl font-semibold tabular-nums">{formatINR(estimate)}</p>
-                <p className="text-xs text-muted-foreground">Preview only. The server is the source of truth.</p>
-              </div>
+          {error && (
+            <p id="order-error" role="alert" className="panel flex items-start gap-2.5 border-destructive/60 bg-destructive/5 px-4 py-3 text-sm font-medium text-destructive">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+              {error}
+            </p>
+          )}
+
+          <div className="panel flex flex-col gap-4 p-4 lg:sticky lg:bottom-4 lg:flex-row lg:items-center lg:justify-between lg:shadow-md">
+            <div>
+              <p className="section-kicker">Estimated total</p>
+              <p className="mt-1 font-mono text-xl font-semibold tabular-nums">{formatINR(estimate)}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={() => nav("/orders")}>Cancel</Button>
               <Button type="submit" className="min-h-11" disabled={busy}>{busy ? "Booking…" : "Book order"}</Button>
             </div>
-
-            {error && <p id="order-error" role="alert" className="border-l-2 border-destructive pl-3 text-[15px] text-destructive">{error}</p>}
-            <p role="status" aria-live="polite" className="sr-only">{busy ? "Booking order" : ""}</p>
-          </form>
-        </CardContent>
-      </Card>
+          </div>
+          <p role="status" aria-live="polite" className="sr-only">{busy ? "Booking order" : ""}</p>
+        </form>
     </div>
   );
 }

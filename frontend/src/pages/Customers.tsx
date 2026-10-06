@@ -21,7 +21,7 @@ export default function Customers() {
   }
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Customer base"
         title="Customers"
@@ -29,21 +29,21 @@ export default function Customers() {
         caption="Customer detail is built from recorded orders; lifetime aggregates arrive with the customer summary contract."
       />
 
-      <section aria-labelledby="concentration-heading" className="space-y-4">
-        <h2 id="concentration-heading" className="font-serif text-xl">Revenue concentration</h2>
+      <section aria-labelledby="concentration-heading" className="space-y-3">
+        <h2 id="concentration-heading" className="section-title">Revenue concentration</h2>
         {pareto.isError ? (
           <StackError message="Couldn't load customer concentration." retry={() => pareto.refetch()} />
         ) : pareto.isLoading ? (
-          <p role="status" className="text-[15px] text-muted-foreground">Calculating customer concentration…</p>
+          <p role="status" className="text-sm text-muted-foreground">Calculating customer concentration…</p>
         ) : pareto.data ? (
-          <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Metric
               label="Top fifth of customers"
               value={formatPercent(pareto.data.top20_share)}
               scope="All available data"
               interpretation="Share of revenue earned by the highest-spending fifth of customers."
             />
-            <Card className="shadow-none">
+            <Card>
               <CardHeader><CardTitle>Concentration curve</CardTitle></CardHeader>
               <CardContent>
                 <MeterRow
@@ -61,9 +61,9 @@ export default function Customers() {
         )}
       </section>
 
-      <section aria-labelledby="lookup-heading" className="space-y-4">
-        <h2 id="lookup-heading" className="font-serif text-xl">Investigate a customer</h2>
-        <form onSubmit={lookup} className="flex max-w-xl flex-col gap-2 sm:flex-row sm:items-end">
+      <section aria-labelledby="lookup-heading" className="space-y-3">
+        <h2 id="lookup-heading" className="section-title">Investigate a customer</h2>
+        <form onSubmit={lookup} className="panel flex max-w-xl flex-col gap-3 p-4 sm:flex-row sm:items-end">
           <Field label="Customer ID" htmlFor="customer-lookup">
             <Input
               id="customer-lookup"

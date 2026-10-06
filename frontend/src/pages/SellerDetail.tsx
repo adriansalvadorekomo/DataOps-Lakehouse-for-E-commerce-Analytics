@@ -54,7 +54,7 @@ export default function SellerDetail() {
   if (seller.return_rate > SELLER_ATTENTION.returnsAbove) attention.push("Returns");
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {backLink}
       <EntityHeader
         title={seller.seller_id}
@@ -77,7 +77,7 @@ export default function SellerDetail() {
       />
 
       <section aria-label="Commercial and operational summary">
-        <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Metric label="Revenue" value={formatINR(seller.revenue, 0)} scope="Returned set" interpretation="Revenue across this seller's returned lines." to="/sales" />
           <Metric label="Order lines" value={seller.lines.toLocaleString("en-IN")} scope="Returned set" interpretation="Lines attributed to this seller." />
           <Metric
@@ -100,7 +100,7 @@ export default function SellerDetail() {
       </section>
 
       <section aria-labelledby="thresholds-heading">
-        <Card className="shadow-none">
+        <Card>
           <CardHeader><CardTitle>Against screening rules</CardTitle></CardHeader>
           <CardContent className="divide-y divide-border">
             <MeterRow
@@ -129,10 +129,9 @@ export default function SellerDetail() {
       </section>
 
       <section aria-labelledby="related-heading">
-        <h2 id="related-heading" className="mb-2 font-serif text-xl">Related</h2>
-        <p className="max-w-2xl text-[15px] text-muted-foreground">
-          Order-level drill-down for this seller needs the transaction filter contract (phase 2).
-          Start from the full order workspace meanwhile.
+        <h2 id="related-heading" className="mb-2 section-title">Related</h2>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Order-level drill-down for this seller isn&apos;t available yet. Start from the full order workspace meanwhile.
         </p>
         <div className="mt-1 flex flex-wrap gap-x-6 gap-y-2">
           <Link to="/orders" className="text-link inline-flex min-h-11 items-center text-[15px] font-medium hover:underline">

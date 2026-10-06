@@ -1,39 +1,42 @@
 @import "tailwindcss";
 
 :root {
-  --radius: 0.5rem;
-  --background: #f5f5f5;
-  --foreground: #2d3142;
+  --radius: 0.625rem;
+  /* Premium warm-neutral ground: bone background, warm ink text, hairline
+     warm borders. White cards sit on bone; ember stays the single brand accent. */
+  --background: #f6f5f1;
+  --foreground: #1c1917;
   --card: #ffffff;
-  --card-foreground: #2d3142;
-  --primary: #eb6c36;
+  --card-foreground: #1c1917;
+  --primary: #ea6a33;
   --primary-action: #c95022;
   --primary-ink: #9a3f20;
   --primary-foreground: #ffffff;
-  --secondary: #ececec;
-  --secondary-foreground: #2d3142;
-  --muted: #f5f5f5;
-  --muted-foreground: #4f5d75;
-  --accent: #ececec;
-  --accent-foreground: #2d3142;
-  --destructive: #8b3a2a;
-  --success: #5e7a4a;
-  --warning: #a85a32;
-  --border: #d4d6dc;
-  --input: #d4d6dc;
-  --ring: #eb6c36;
-  --sidebar: #fafafa;
-  --link: #2e5aa8;
+  --secondary: #ece9e2;
+  --secondary-foreground: #1c1917;
+  --muted: #ece9e2;
+  --muted-foreground: #5b564d;
+  --accent: #ece9e2;
+  --accent-foreground: #1c1917;
+  --destructive: #8f3a28;
+  --success: #4a6b3e;
+  --warning: #a2592f;
+  --border: #e2ded5;
+  --input: #d3cec2;
+  --ring: #ea6a33;
+  --sidebar: #fdfcf9;
+  --link: #2b55a0;
   --queue-numeral: #9a3f20;
   --focus-ring: #c95022;
-  /* Terminal panel (Ask workspace): inverted ledger — ink ground, paper ink. */
-  --term-ground: #2d3142;
-  --term-ground-soft: rgba(245, 245, 245, 0.07);
-  --term-ground-softer: rgba(245, 245, 245, 0.04);
-  --term-ink: #f5f5f5;
-  --term-mist: #bcc5d4;
-  --term-faint: rgba(245, 245, 245, 0.55);
-  --term-line: rgba(245, 245, 245, 0.16);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05);
+  /* Terminal panel (Ask workspace): inverted ledger — warm ink ground, paper ink. */
+  --term-ground: #221e1a;
+  --term-ground-soft: rgba(250, 249, 246, 0.07);
+  --term-ground-softer: rgba(250, 249, 246, 0.04);
+  --term-ink: #faf9f6;
+  --term-mist: #c8c0b2;
+  --term-faint: rgba(250, 249, 246, 0.55);
+  --term-line: rgba(250, 249, 246, 0.16);
   --term-accent: #ee8a5b;
   --term-ok: #9dbe8c;
   --term-warn: #e0a075;
@@ -108,31 +111,51 @@
   .text-link {
     color: var(--link);
   }
-  /* Sentence-case section kicker: replaces tracked ALL-CAPS mono labels.
-     Stakeholder wording stays verbatim; only the visual treatment changes. */
+  /* Micro-label used for sidebar sections, card eyebrows, and control
+     legends. Uppercase + tracked reads as tooling, not marketing. */
   .section-kicker {
-    font-size: 0.8125rem;
+    font-size: 0.6875rem;
     font-weight: 600;
-    letter-spacing: normal;
-    text-transform: none;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     color: var(--muted-foreground);
     line-height: 1.4;
   }
   .section-kicker--ember {
     color: var(--primary-ink);
   }
+  /* Console section title: compact sans, never a display serif. */
+  .section-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.4;
+    color: var(--foreground);
+  }
+  /* Raised surface: white card on the neutral ground. Prefer over ad-hoc
+     border/background combos so panels stay consistent. */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+  }
+  /* Business measures use sans + tabular-nums; technical evidence keeps mono. */
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
   /* Numbered ops queue numeral — the console's one memorable element. */
   .queue-numeral {
     display: inline-grid;
     place-items: center;
-    min-width: 1.75rem;
-    height: 1.75rem;
+    min-width: 1.5rem;
+    height: 1.5rem;
     padding-inline: 0.375rem;
     border: 1px solid var(--border);
     border-radius: 999px;
-    background: var(--card);
+    background: var(--secondary);
     color: var(--queue-numeral);
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     line-height: 1;
@@ -146,11 +169,11 @@
   .term {
     background: var(--term-ground);
     color: var(--term-ink);
-    border: 1px solid rgba(45, 49, 66, 0.9);
+    border: 1px solid rgba(34, 30, 26, 0.9);
     border-radius: 14px;
     box-shadow:
-      0 1px 0 rgba(45, 49, 66, 0.4),
-      0 18px 44px -18px rgba(45, 49, 66, 0.45);
+      0 1px 0 rgba(34, 30, 26, 0.4),
+      0 18px 44px -18px rgba(34, 30, 26, 0.45);
   }
   .term ::selection {
     background: var(--term-accent);
@@ -264,6 +287,49 @@
   }
   .term-turn-enter {
     animation: term-rise 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  /* ---- Market tape (Wall-Street-style scrolling levels strip) ---- */
+  .tape {
+    overflow: hidden;
+  }
+  .tape-track {
+    display: inline-flex;
+    white-space: nowrap;
+    will-change: transform;
+    animation: tape-scroll 55s linear infinite;
+  }
+  .tape:hover .tape-track {
+    animation-play-state: paused;
+  }
+  @keyframes tape-scroll {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  /* ---- Charts (recharts): quiet grid, muted ticks, panel tooltip ---- */
+  .recharts-cartesian-axis-tick text {
+    font-size: 12px;
+    fill: var(--muted-foreground);
+    font-variant-numeric: tabular-nums;
+  }
+  .recharts-cartesian-grid line {
+    stroke: var(--border);
+    stroke-opacity: 0.8;
+  }
+  .recharts-default-tooltip {
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--shadow-card) !important;
+    font-size: 13px !important;
+    font-variant-numeric: tabular-nums !important;
+  }
+  .recharts-tooltip-label {
+    color: var(--muted-foreground) !important;
+    font-weight: 600 !important;
   }
 }
 

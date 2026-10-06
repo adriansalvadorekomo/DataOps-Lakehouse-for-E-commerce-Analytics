@@ -35,7 +35,7 @@ export function SegmentedControl<T extends string>({
               aria-pressed={selected}
               onClick={() => onChange(option)}
               className={cn(
-                "min-h-11 min-w-11 rounded-md px-4 text-sm transition-colors",
+                "min-h-10 min-w-10 rounded-md px-4 text-sm transition-colors",
                 selected
                   ? dark
                     ? "bg-[var(--term-ink)] font-semibold text-[var(--term-ground)] shadow-sm"

@@ -313,3 +313,11 @@ export interface ForecastResponse {
 export function formatINR(n: number, digits = 2): string {
   return `₹${n.toLocaleString("en-IN", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 }
+
+/** Compact Indian units spelled out for stakeholders (Crore, Lakh) — never abbreviated. */
+export function formatINRCompact(n: number): string {
+  const abs = Math.abs(n);
+  if (abs >= 1e7) return `₹${(n / 1e7).toFixed(2)} Crore`;
+  if (abs >= 1e5) return `₹${(n / 1e5).toFixed(2)} Lakh`;
+  return formatINR(n, 0);
+}

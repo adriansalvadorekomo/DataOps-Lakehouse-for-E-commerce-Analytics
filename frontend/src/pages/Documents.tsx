@@ -84,7 +84,7 @@ export default function Documents() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Knowledge library"
         title="Documents"
@@ -93,8 +93,8 @@ export default function Documents() {
 
       {statusMessage && <div role="status" aria-live="polite" className="border-l-2 border-primary pl-3 text-[15px] text-muted-foreground">{statusMessage}</div>}
 
-      <section aria-labelledby="attach-title" className="border-y border-border py-4">
-        <h2 id="attach-title" className="text-[15px] font-medium">Attach a document</h2>
+      <section aria-labelledby="attach-title" className="panel p-4">
+        <h2 id="attach-title" className="section-title">Attach a document</h2>
         <p id="file-hint" className="mt-1 text-[13px] text-muted-foreground">Choose a PDF, Markdown, text or CSV file up to 20 MB.</p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Input
@@ -163,7 +163,7 @@ export default function Documents() {
                   );
                 })}
                 {docs.data?.length === 0 && (
-                  <TableRow><TableCell colSpan={4} className="p-0"><EmptyState title="No documents attached" body="Attach a source file to search its passages or use it in Ask mode." /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="p-0"><EmptyState title="No documents attached" body="Attach a source file to search inside it or use it in Ask mode." /></TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -173,15 +173,15 @@ export default function Documents() {
 
       <section aria-labelledby="search-title" className="space-y-4 border-t border-border pt-6">
         <div>
-          <h2 id="search-title" className="font-serif text-xl">Search documents</h2>
-          <p className="mt-1 text-[15px] text-muted-foreground">Preview the passages that Ask mode can use as evidence.</p>
+          <h2 id="search-title" className="section-title">Search documents</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Preview what Ask mode can quote from your files.</p>
         </div>
         <form className="flex flex-col gap-2 sm:flex-row" onSubmit={search}>
           <label htmlFor="document-search" className="sr-only">Search documents</label>
           <Input id="document-search" className="h-11" placeholder="e.g. return policy for electronics" value={query} disabled={searchBusy} onChange={(event) => setQuery(event.target.value)} />
           <Button type="submit" className="min-h-11" disabled={searchBusy || !query.trim()}>{searchBusy ? "Searching…" : "Search documents"}</Button>
         </form>
-        {searchBusy && <p role="status" className="text-[15px] text-muted-foreground">Searching document passages…</p>}
+        {searchBusy && <p role="status" className="text-[15px] text-muted-foreground">Searching your documents…</p>}
         {searchError && (
           <div role="alert" className="border-l-2 border-destructive pl-3 text-[15px]">
             <p className="text-destructive">{searchError}</p>
@@ -191,7 +191,7 @@ export default function Documents() {
         {hits === null && !searchBusy && !searchError && (
           <div className="flex gap-3 border-y border-border py-6 text-muted-foreground">
             <FileSearch className="mt-0.5 shrink-0" size={20} aria-hidden="true" />
-            <div><p className="text-[15px] font-medium text-foreground">Search before asking</p><p className="mt-1 text-[15px]">Enter a policy, product or process question to inspect the source passages available to Ask mode.</p></div>
+            <div><p className="text-[15px] font-medium text-foreground">Search before asking</p><p className="mt-1 text-[15px]">Enter a policy, product or process question to see what your files say before you ask.</p></div>
           </div>
         )}
         {hits && (
@@ -203,7 +203,6 @@ export default function Documents() {
                 <p className="mt-2 max-w-3xl text-[15px] leading-relaxed text-foreground">{hit.content.slice(0, 400)}{hit.content.length > 400 ? "…" : ""}</p>
                 <Disclosure summary="Match evidence" eyebrow="Technical detail" className="mt-3 bg-transparent">
                   <p>Passage {hit.chunk_index + 1}</p>
-                  <p className="evidence">Relevance score {hit.score.toFixed(3)}</p>
                 </Disclosure>
               </article>
             ))}

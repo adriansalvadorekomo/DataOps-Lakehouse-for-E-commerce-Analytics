@@ -119,6 +119,21 @@ The approach taken: the lakehouse logic is pure Python (`lakehouse/src/`) testab
 
 ---
 
+## ADR-9 — Card-based console design system for the frontend
+
+**Decision:** The frontend uses a dense, card-based operations-console language: warm-neutral premium palette, sans-first type, white `.panel` surfaces, slim sidebar plus topbar shell.
+
+**Why:** The previous editorial system (Instrument Serif display headlines, border-top ghost metrics, flat paper background) read as marketing content, not tooling. Operators scan measures and act on exceptions — that job needs density, consistent cards, tabular numerals, and a visible hierarchy of page → section → measure. The premium feel comes from restraint: warm bone neutrals instead of cold grays, hairline borders instead of heavy dividers, and a single ember accent instead of a multi-hue palette.
+
+**What was rejected:**
+- Keeping the editorial serif system and restyling around it: the serif headlines were the loudest element on every page and fought data density
+- Dark sidebar / full dark mode: a second theme doubles the contrast-audit surface; the inverted Ask terminal already provides the dark tool metaphor where it earns its place
+- Adopting a second component library or generated theme: the Tailwind v4 token + `.panel`/`.section-title`/`.section-kicker` utility layer covers the system with no new dependency
+
+**Consequences:** Visual changes are concentrated in `index.css` tokens, `AppShell`, `PageHeader` primitives, and the `ui/` primitives — pages inherit the system and mostly needed spacing and heading-style updates. The 44px touch-target overrides stay (accessibility posture is unchanged). Future pages compose `PageHeader`, `Metric`, `Disclosure`, and `.panel` instead of inventing new surfaces.
+
+---
+
 ## Known limitations and technical debt
 
 **Single `final_price` tolerance value:** ±₹5.00 is calibrated against the current source dataset. A different source with higher-precision calculations might need a tighter tolerance. The value is defined in one place (`lakehouse/src/silver/transform.py`) and documented explicitly.

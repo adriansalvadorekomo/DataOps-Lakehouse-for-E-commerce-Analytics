@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import { Disclosure } from "@/components/Disclosure";
 import { MeterRow } from "@/components/MeterRow";
+import { Metric } from "@/components/Metric";
 import { TrustStatus } from "@/components/TrustStatus";
 import { EmptyState, PageHeader, SortTh, StackError, TableSkeleton } from "@/components/PageHeader";
 
@@ -23,6 +24,8 @@ export default function Operations() {
   const dq = useQuery({ queryKey: ["dq"], queryFn: api.dqChecks, staleTime: STALE });
   const failingChecks = (dq.data ?? []).filter((check) => check.violations > 0);
   const checkTotal = (dq.data ?? []).length;
+  const worstCity = [...(cities.data ?? [])].sort((a, b) => b.delayed_rate - a.delayed_rate)[0];
+  const thinnest = [...(stock.data ?? [])].sort((a, b) => a.latest_stock - b.latest_stock)[0];
   const stockSort = useSortedRows(stock.data ?? [], "stock", {
     product: (product: StockAlert) => product.product_id,
     category: (product: StockAlert) => product.category,
@@ -34,11 +37,27 @@ export default function Operations() {
   const latestSnapshot = [...(stock.data ?? [])].map((product) => product.latest_snapshot_date).sort().at(-1);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <PageHeader eyebrow="Fulfillment and inventory" title="Needs action" question="Where are delivery outcomes weak, what needs restocking, and can the books be relied on?" />
 
-      <section aria-labelledby="shipping-heading" className="space-y-4">
-        <div><p className="section-kicker section-kicker--ember">Delivery outcomes</p><h2 id="shipping-heading" className="mt-1 font-serif text-2xl">Where customers are waiting longer</h2></div>
+      {cities.isError || dq.isError || stock.isError ? (
+        <StackError message="Couldn't load the operations headline." retry={() => { cities.refetch(); dq.refetch(); stock.refetch(); }} />
+      ) : cities.isLoading || dq.isLoading || stock.isLoading ? (
+        <p role="status" className="text-sm text-muted-foreground">Reading the operations headline…</p>
+      ) : worstCity && thinnest && checkTotal > 0 ? (
+        <section aria-label="Operations headline">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Metric label="Worst delayed metro" value={`${worstCity.city} ${formatPercent(worstCity.delayed_rate, 0)}`} scope="Delayed share of completed orders" interpretation={`${formatPercent(worstCity.return_rate, 0)} returned for context.`} tone={worstCity.delayed_rate > 0.5 ? "attention" : "normal"} to="/operations" />
+            <Metric label="Thinnest stock" value={`${thinnest.latest_stock} units`} scope={thinnest.product_id} interpretation={`${thinnest.category} · ${formatINR(thinnest.current_price, 0)} current price.`} tone="attention" to="/inventory" />
+            <Metric label="Checks passing" value={`${checkTotal - failingChecks.length} of ${checkTotal}`} scope="Marketplace integrity rules" interpretation={failingChecks.length === 0 ? "Every returned check has zero violations." : `${failingChecks.length} checks need attention.`} tone={failingChecks.length === 0 ? "normal" : "attention"} to="/pipeline" />
+          </div>
+        </section>
+      ) : (
+        <EmptyState title="No operations headline yet" body="Metro, stock and check signals appear once orders are on the books." />
+      )}
+
+      <section aria-labelledby="shipping-heading" className="space-y-3">
+        <h2 id="shipping-heading" className="section-title">Where customers are waiting longer</h2>
         <Card>
           <CardHeader><CardTitle>Delayed orders by metro</CardTitle></CardHeader>
           <CardContent>
@@ -58,8 +77,8 @@ export default function Operations() {
         </Card>
       </section>
 
-      <section aria-labelledby="integrity-heading" className="space-y-4">
-        <div><p className="section-kicker section-kicker--ember">Confidence</p><h2 id="integrity-heading" className="mt-1 font-serif text-2xl">Can teams use these books?</h2></div>
+      <section aria-labelledby="integrity-heading" className="space-y-3">
+        <h2 id="integrity-heading" className="section-title">Can teams use these books?</h2>
         <Card>
           <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4">
             <div><CardTitle>Marketplace checks</CardTitle><p className="mt-1 text-[13px] text-muted-foreground">Passing requires checks to be present and every returned check to have zero violations.</p></div>
@@ -88,7 +107,7 @@ export default function Operations() {
                   </Disclosure>
                 ))}
                 <Disclosure summary="Technical source and rule set" eyebrow="Technical detail">
-                  These checks mirror PostgreSQL rules R1–R7 over the marketplace books. They are not a live Databricks workflow result.
+                  These are consistency checks on recorded orders. They don&apos;t show whether the latest analytics processing finished — the trust center covers that.
                 </Disclosure>
               </div>
             )}
@@ -96,13 +115,19 @@ export default function Operations() {
         </Card>
       </section>
 
-      <section aria-labelledby="restock-heading" className="space-y-4">
+      <section aria-labelledby="restock-heading" className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div><p className="section-kicker section-kicker--ember">Inventory</p><h2 id="restock-heading" className="mt-1 font-serif text-2xl">Restock the thinnest inventory first</h2><p className="mt-2 max-w-[70ch] text-sm text-muted-foreground">This is the real low-stock list, ordered for review; confirm demand and inbound supply before reordering.</p></div>
+          <h2 id="restock-heading" className="section-title">Restock the thinnest inventory first</h2>
           {latestSnapshot && <p className="border-l-[3px] border-primary pl-3 text-sm font-medium">Latest snapshot<br /><span className="evidence text-muted-foreground">{formatDate(latestSnapshot)}</span></p>}
         </div>
         <Card className="overflow-hidden">
-          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3"><CardTitle>Lowest stock · up to 50 products</CardTitle><Link to="/orders" className="min-h-11 py-3 text-[15px] hover:underline">Orders</Link></CardHeader>
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Lowest stock · up to 50 products</CardTitle>
+              <p className="mt-1 text-[13px] text-muted-foreground">Ordered for review; confirm demand and inbound supply before reordering.</p>
+            </div>
+            <Link to="/orders" className="min-h-11 py-3 text-[15px] hover:underline">Orders</Link>
+          </CardHeader>
           <CardContent className="p-0">
             {stock.isError ? (
               <div className="p-5"><StackError message="Couldn't load low-stock products." retry={() => stock.refetch()} /></div>

@@ -44,10 +44,10 @@ export function TrustStatus({
       <div className="flex items-start gap-2">
         <span
           className={cn(
-            "mt-0.5 inline-grid size-5 shrink-0 place-items-center border",
-            tone === "positive" && "border-success text-success",
-            tone === "attention" && "border-warning text-warning",
-            tone === "neutral" && "border-muted-foreground text-muted-foreground",
+            "mt-0.5 inline-grid size-5 shrink-0 place-items-center rounded-full border",
+            tone === "positive" && "border-success/40 bg-success/10 text-success",
+            tone === "attention" && "border-warning/40 bg-warning/10 text-warning",
+            tone === "neutral" && "border-border bg-secondary text-muted-foreground",
           )}
           aria-hidden="true"
         >

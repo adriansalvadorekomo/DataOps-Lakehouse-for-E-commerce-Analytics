@@ -19,6 +19,7 @@ import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { PageHeader, PageSkeleton } from "@/components/PageHeader";
 import { TrustStrip } from "@/components/TrustStrip";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const Overview = lazy(() => import("@/pages/Overview"));
@@ -56,7 +57,21 @@ const ROUTE_TITLES: Record<string, string> = {
 };
 
 function Section({ label }: { label: string }) {
-  return <p className="section-kicker px-3 pt-5 pb-1">{label}</p>;
+  return <p className="section-kicker px-3 pb-1 pt-4">{label}</p>;
+}
+
+function Brand({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <Link to="/" onClick={onNavigate} className="flex items-center gap-2.5 rounded-lg px-2 py-1">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground" aria-hidden="true">
+        <Store size={16} strokeWidth={2.25} />
+      </span>
+      <span className="min-w-0 leading-tight">
+        <span className="block truncate text-sm font-semibold tracking-tight text-foreground">Smart-ERP</span>
+        <span className="block text-xs text-muted-foreground">India marketplace</span>
+      </span>
+    </Link>
+  );
 }
 
 function NavItem({
@@ -79,10 +94,10 @@ function NavItem({
       onClick={onClick}
       className={({ isActive }) =>
         cn(
-          "flex min-h-11 items-center gap-3 rounded-md border border-transparent px-3 py-2 text-[14px] transition-colors",
+          "flex min-h-9 items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13.5px] transition-colors",
           isActive
-            ? "border-border border-l-2 border-l-primary bg-card font-medium text-foreground shadow-sm"
-            : "font-normal text-muted-foreground hover:bg-secondary hover:text-foreground",
+            ? "bg-secondary font-medium text-foreground"
+            : "font-normal text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
         )
       }
     >
@@ -95,26 +110,58 @@ function NavItem({
 function Nav({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav aria-label="Primary" className="flex flex-col gap-0.5">
-      <NavItem to="/" end icon={<LayoutDashboard size={17} strokeWidth={1.75} />} label="Today" onClick={onNavigate} />
+      <NavItem to="/" end icon={<LayoutDashboard   size={16} strokeWidth={1.75} />} label="Today" onClick={onNavigate} />
       <Section label="Commerce" />
-      <NavItem to="/orders" icon={<Rows3 size={17} strokeWidth={1.75} />} label="Orders" onClick={onNavigate} />
-      <NavItem to="/new" icon={<Plus size={17} strokeWidth={1.75} />} label="Book order" onClick={onNavigate} />
-      <NavItem to="/sales" icon={<ChartLine size={17} strokeWidth={1.75} />} label="Revenue" onClick={onNavigate} />
-      <NavItem to="/customers" icon={<Users size={17} strokeWidth={1.75} />} label="Customers" onClick={onNavigate} />
+      <NavItem to="/orders" icon={<Rows3   size={16} strokeWidth={1.75} />} label="Orders" onClick={onNavigate} />
+      <NavItem to="/new" icon={<Plus   size={16} strokeWidth={1.75} />} label="Book order" onClick={onNavigate} />
+      <NavItem to="/sales" icon={<ChartLine   size={16} strokeWidth={1.75} />} label="Revenue" onClick={onNavigate} />
+      <NavItem to="/customers" icon={<Users   size={16} strokeWidth={1.75} />} label="Customers" onClick={onNavigate} />
       <Section label="Operations" />
-      <NavItem to="/sellers" icon={<Store size={17} strokeWidth={1.75} />} label="Sellers" onClick={onNavigate} />
-      <NavItem to="/inventory" icon={<Boxes size={17} strokeWidth={1.75} />} label="Inventory" onClick={onNavigate} />
-      <NavItem to="/operations" icon={<ClipboardList size={17} strokeWidth={1.75} />} label="Needs action" onClick={onNavigate} />
+      <NavItem to="/sellers" icon={<Store   size={16} strokeWidth={1.75} />} label="Sellers" onClick={onNavigate} />
+      <NavItem to="/inventory" icon={<Boxes   size={16} strokeWidth={1.75} />} label="Inventory" onClick={onNavigate} />
+      <NavItem to="/operations" icon={<ClipboardList   size={16} strokeWidth={1.75} />} label="Needs action" onClick={onNavigate} />
       <Section label="Analytics" />
-      <NavItem to="/performance" icon={<Gauge size={17} strokeWidth={1.75} />} label="Performance" onClick={onNavigate} />
-      <NavItem to="/forecast" icon={<TrendingUp size={17} strokeWidth={1.75} />} label="Forecast" onClick={onNavigate} />
+      <NavItem to="/performance" icon={<Gauge   size={16} strokeWidth={1.75} />} label="Performance" onClick={onNavigate} />
+      <NavItem to="/forecast" icon={<TrendingUp   size={16} strokeWidth={1.75} />} label="Forecast" onClick={onNavigate} />
       <Section label="Intelligence" />
-      <NavItem to="/ask" icon={<MessageCircle size={17} strokeWidth={1.75} />} label="Ask" onClick={onNavigate} />
-      <NavItem to="/documents" icon={<FileText size={17} strokeWidth={1.75} />} label="Documents" onClick={onNavigate} />
+      <NavItem to="/ask" icon={<MessageCircle   size={16} strokeWidth={1.75} />} label="Ask" onClick={onNavigate} />
+      <NavItem to="/documents" icon={<FileText   size={16} strokeWidth={1.75} />} label="Documents" onClick={onNavigate} />
       <Section label="Platform" />
-      <NavItem to="/pipeline" icon={<ShieldCheck size={17} strokeWidth={1.75} />} label="How numbers are trusted" onClick={onNavigate} />
+      <NavItem to="/pipeline" icon={<ShieldCheck   size={16} strokeWidth={1.75} />} label="How numbers are trusted" onClick={onNavigate} />
     </nav>
   );
+}
+
+const ROUTE_SECTIONS: Record<string, string> = {
+  "/": "Overview",
+  "/sales": "Commerce",
+  "/sellers": "Operations",
+  "/customers": "Commerce",
+  "/inventory": "Operations",
+  "/performance": "Analytics",
+  "/forecast": "Analytics",
+  "/ask": "Intelligence",
+  "/operations": "Operations",
+  "/orders": "Commerce",
+  "/new": "Commerce",
+  "/documents": "Intelligence",
+  "/pipeline": "Platform",
+};
+
+function routeTitle(pathname: string): string {
+  if (pathname.startsWith("/orders/")) return "Order detail";
+  if (pathname.startsWith("/sellers/")) return "Seller detail";
+  if (pathname.startsWith("/products/")) return "Product detail";
+  if (pathname.startsWith("/customers/")) return "Customer detail";
+  return ROUTE_TITLES[pathname] ?? "Page not found";
+}
+
+function routeSection(pathname: string): string {
+  if (pathname.startsWith("/orders/")) return "Commerce";
+  if (pathname.startsWith("/sellers/")) return "Operations";
+  if (pathname.startsWith("/products/")) return "Operations";
+  if (pathname.startsWith("/customers/")) return "Commerce";
+  return ROUTE_SECTIONS[pathname] ?? "Console";
 }
 
 function NotFound() {
@@ -137,16 +184,7 @@ export function AppShell() {
   const wasOpenRef = useRef(false);
 
   useEffect(() => {
-    const routeTitle = location.pathname.startsWith("/orders/")
-      ? "Order detail"
-      : location.pathname.startsWith("/sellers/")
-        ? "Seller detail"
-        : location.pathname.startsWith("/products/")
-          ? "Product detail"
-          : location.pathname.startsWith("/customers/")
-            ? "Customer detail"
-            : ROUTE_TITLES[location.pathname];
-    document.title = `${routeTitle ?? "Page not found"} · Smart-ERP`;
+    document.title = `${routeTitle(location.pathname)} · Smart-ERP`;
     requestAnimationFrame(() => document.getElementById("page-title")?.focus());
   }, [location.pathname]);
 
@@ -192,24 +230,19 @@ export function AppShell() {
   }, [open]);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-background">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-card focus:px-3 focus:py-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-card focus:px-3 focus:py-2"
       >
         Skip to content
       </a>
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-sidebar p-4 md:flex">
-        <Link to="/" className="px-2 font-serif text-[1.35rem] tracking-tight text-foreground">
-          Smart-ERP
-        </Link>
-        <p className="mt-0.5 px-2 text-xs text-muted-foreground">
-          India marketplace
-        </p>
-        <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-r border-border bg-sidebar px-3 py-4 md:flex">
+        <Brand />
+        <div className="mt-2 min-h-0 flex-1 overflow-y-auto pb-2">
           <Nav />
         </div>
-        <TrustStrip className="mt-4 border-t border-border pt-4" />
+        <TrustStrip className="rounded-lg border border-border bg-card p-3 shadow-sm" />
       </aside>
 
       {open && (
@@ -221,46 +254,56 @@ export function AppShell() {
             role="dialog"
             aria-modal="true"
             aria-label="Marketplace navigation"
-            className="relative z-50 flex h-full w-72 max-w-[85vw] flex-col border-r border-border bg-sidebar p-4"
+            className="relative z-50 flex h-full w-72 max-w-[85vw] flex-col gap-1 border-r border-border bg-sidebar px-3 py-4"
           >
-            <div className="mb-2 flex items-center justify-between">
-              <Link to="/" className="font-serif text-[1.25rem]" onClick={() => setOpen(false)}>
-                Smart-ERP
-              </Link>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <Brand onNavigate={() => setOpen(false)} />
               <button
                 ref={closeButtonRef}
                 type="button"
-                className="rounded-md p-3 text-muted-foreground"
+                className="rounded-md p-2.5 text-muted-foreground hover:bg-secondary"
                 aria-label="Close menu"
                 onClick={() => setOpen(false)}
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto pb-2">
               <Nav onNavigate={() => setOpen(false)} />
             </div>
-            <TrustStrip className="mt-4 border-t border-border pt-4" />
+            <TrustStrip className="rounded-lg border border-border bg-card p-3 shadow-sm" />
           </aside>
         </div>
       )}
 
-      <div className="min-w-0 flex-1" aria-hidden={open || undefined}>
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background px-4 py-3 md:hidden">
-          <button
-            ref={menuButtonRef}
-            type="button"
-            className="rounded-md p-3"
-            aria-label="Open menu"
-            aria-expanded={open}
-            aria-controls="mobile-navigation"
-            onClick={() => setOpen(true)}
-          >
-            <Menu size={18} />
-          </button>
-          <span className="font-serif text-lg">Smart-ERP</span>
+      <div className="flex min-w-0 flex-1 flex-col" aria-hidden={open || undefined}>
+        <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur">
+          <div className="mx-auto flex h-14 w-full max-w-[88rem] items-center gap-3 px-4 sm:px-6 lg:px-8">
+            <button
+              ref={menuButtonRef}
+              type="button"
+              className="rounded-md p-2.5 md:hidden"
+              aria-label="Open menu"
+              aria-expanded={open}
+              aria-controls="mobile-navigation"
+              onClick={() => setOpen(true)}
+            >
+              <Menu size={16} />
+            </button>
+            <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
+              <span className="hidden shrink-0 text-muted-foreground sm:inline">{routeSection(location.pathname)}</span>
+              <span className="hidden text-muted-foreground sm:inline" aria-hidden="true">/</span>
+              <span className="truncate font-medium text-foreground" aria-current="page">{routeTitle(location.pathname)}</span>
+            </nav>
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <Link to="/new" className={buttonVariants({ size: "sm" })}>
+                <Plus size={14} strokeWidth={2.25} aria-hidden="true" />
+                Book order
+              </Link>
+            </div>
+          </div>
         </header>
-        <main id="main" className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+        <main id="main" className="mx-auto w-full max-w-[88rem] flex-1 space-y-6 px-4 py-6 sm:px-6 lg:px-8">
           <Suspense fallback={<PageSkeleton />}>
             <Routes>
               <Route path="/" element={<Overview />} />

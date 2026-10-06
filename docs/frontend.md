@@ -10,6 +10,17 @@ The frontend is the consumption and decision layer of the data platform. It turn
 OLTP / Gold models → FastAPI endpoints → typed API client → TanStack Query / pages
 ```
 
+## Design system
+
+The console is designed as a dense operations tool, not a marketing surface: operators scan numbers fast and act on exceptions. That is why display-serif headlines and border-top ghost metrics were replaced with a card-based console language.
+
+- **Palette (premium warm neutrals):** bone ground `#f6f5f1`, warm ink text `#1c1917`, white cards on hairline warm borders `#e2ded5`. Ember `#ea6a33` is the single brand accent (primary actions, brand mark, attention highlights); status colors are muted jewel tones (forest `#4a6b3e`, ochre `#a2592f`, brick `#8f3a28`). No gradients, no purple/indigo defaults.
+- **Type:** Geist sans throughout with tight tracking — 20px semibold page titles, 15px semibold section titles, 11px uppercase tracked micro-labels. Business measures use tabular numerals; technical evidence (IDs, endpoints, SQL) uses Geist Mono.
+- **Shell (`AppShell`):** slim white sidebar (240px, grouped sections, filled active state) plus a sticky blurred topbar with a section/title breadcrumb and a live trust badge (`GET /trust/status`, sharing the sidebar strip's React Query cache so there is no second fetch). Content is capped at 88rem on a 24px vertical rhythm with 16px card gaps.
+- **Surfaces:** `.panel` (white card, hairline border, subtle shadow) is the default container for metrics, filters, errors, and disclosures. Tables are 14px with uppercase 12px sticky headers.
+- **Ask workspace exception:** the terminal panel stays inverted (warm ink ground). It is a deliberate tool metaphor, not a second theme.
+- **Accessibility posture:** skip link, visible focus rings, focus-trapped mobile drawer, 44px touch targets on links and buttons (the `min-h-11` overrides are intentional), skeleton/error/empty states on every async surface, and `prefers-reduced-motion` support.
+
 ## Stakeholder routes and calls
 
 All backend paths below are stable paths prefixed by the frontend API base (`/api` by default).
@@ -17,7 +28,7 @@ All backend paths below are stable paths prefixed by the frontend API base (`/ap
 | Route | Stakeholder label | Business purpose | Actual backend calls |
 |---|---|---|---|
 | `/` | Today | Marketplace performance with equal-period comparisons, revenue outlook, and attention | `GET /stats/performance-summary?days={30|90|365}`, `GET /stats/overview`, `GET /stats/revenue-trend`, `GET /stats/forecast`, `GET /stats/pareto`, `GET /stats/city-performance`, `GET /stats/seller-performance`, `GET /stats/revenue-by-category` |
-| `/ask` | Ask | Ask governed questions using Live books, Documents, or Databricks | `GET /trust/status`, `POST /ai/ask`, `POST /ai/ask-docs`, `POST /ai/ask-genie` |
+| `/ask` | Ask | Ask governed questions using Live books, Documents, or Genie AI | `GET /trust/status`, `POST /ai/ask`, `POST /ai/ask-docs`, `POST /ai/ask-genie` |
 | `/sales` | Revenue | Revenue drivers, category movement, city performance, discount bands, and sellers | `GET /stats/category-trend`, `GET /stats/city-performance`, `GET /stats/discount-bands`, `GET /stats/seller-performance` |
 | `/sellers` | Sellers | Seller performance and attention flags | `GET /stats/seller-performance` |
 | `/operations` | Needs action | Fulfillment, stock, and data-quality exceptions | `GET /stats/city-performance`, `GET /stats/stock-critical`, `GET /stats/dq-checks` |
@@ -42,7 +53,7 @@ The interface uses stakeholder labels while retaining distinct technical engines
 
 - **Live books** calls `POST /ai/ask`. It is deterministic, uses no LLM, and computes supported answers from committed orders, stats, and forecast services.
 - **Documents** calls `POST /ai/ask-docs`. Retrieval and synthesis are grounded only in attached files; without grounding it reports that it cannot answer from the documents.
-- **Databricks** calls `POST /ai/ask-genie`. Genie creates SQL for each question against published Gold data and returns the answer, SQL, rows, and source metadata.
+- **Genie AI** calls `POST /ai/ask-genie`. Genie creates SQL for each question against published Gold data and returns the answer, SQL, rows, and source metadata.
 
 Ask answers are stateless and never perform actions. Technical evidence such as SQL, endpoint paths, parameters, passages, chunks, and scores remains available through optional disclosures.
 

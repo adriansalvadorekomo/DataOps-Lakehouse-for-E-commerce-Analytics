@@ -30,27 +30,27 @@ const MODES: Record<AskMode, {
 }> = {
   data: {
     label: "Live books",
-    purpose: "Compute an answer from committed marketplace records and the latest stored outlook.",
+    purpose: "Answer from recorded marketplace orders and the latest stored outlook.",
     bestFor: "Revenue, sellers, orders, inventory, fulfillment, quality checks and forecasts.",
-    promise: "Every supported answer names the governed business source used. Unsupported questions are not guessed.",
+    promise: "Every supported answer names the business source used. Unsupported questions are not guessed.",
     placeholder: "For example, which sellers need attention?",
-    progress: "Checking committed marketplace records",
+    progress: "Checking recorded marketplace orders",
   },
   docs: {
     label: "Documents",
-    purpose: "Find relevant passages in uploaded documents and prepare an answer grounded in those passages.",
+    purpose: "Find relevant passages in uploaded documents and prepare an answer from those passages.",
     bestFor: "Business reviews, narrative drivers, policy detail and summaries of attached reports.",
-    promise: "Matched filenames and passage numbers accompany the answer. No match means no grounded claim.",
+    promise: "Matched filenames and passage numbers accompany the answer. Without a match, it says so instead of guessing.",
     placeholder: "For example, what drove growth in Q1?",
-    progress: "Finding relevant passages, then preparing a grounded answer",
+    progress: "Finding relevant passages, then preparing your answer",
   },
   genie: {
-    label: "Databricks",
-    purpose: "Ask a governed Genie Space to prepare and run a query over published marketplace datasets.",
+    label: "Genie AI",
+    purpose: "Ask the published reports a free-form question — Genie AI writes and runs the analysis.",
     bestFor: "Flexible breakdowns by month, category, seller or another published business dimension.",
-    promise: "The answer identifies the published marketplace query. SQL stays available as technical evidence.",
+    promise: "The answer names the published report it used. The exact analysis stays available as technical evidence.",
     placeholder: "For example, show total revenue by month",
-    progress: "Waiting for Databricks to prepare and run a governed query",
+    progress: "Asking the published reports",
   },
 };
 
@@ -58,6 +58,41 @@ const EXAMPLES: Record<AskMode, string[]> = {
   data: ["What is total revenue?", "Which sellers need attention?", "Which products need restocking?", "Are the books clean?"],
   docs: ["What drove growth in Q1?", "Summarize the attached reports", "What risks are named in the latest review?"],
   genie: ["Total revenue by month", "Return rate by category", "Compare seller revenue by quarter"],
+};
+
+/** Question kinds each source actually answers. Every hint maps to a
+    supported intent — hints never suggest what the engine cannot do. */
+const HINTS: Record<AskMode, { title: string; items: string[] }> = {
+  data: {
+    title: "This source answers questions like",
+    items: [
+      "What is total revenue?",
+      "Which sellers need attention?",
+      "Which products need restocking?",
+      "What is the return rate?",
+      "What is the delayed rate?",
+      "Revenue by category",
+      "Top 5 sellers",
+      "What is the forecast?",
+      "Where is order 123?",
+    ],
+  },
+  docs: {
+    title: "This source answers questions like",
+    items: [
+      "Summarize the attached reports",
+      "What risks are named?",
+      "What drove growth?",
+    ],
+  },
+  genie: {
+    title: "This source answers questions like",
+    items: [
+      "Total revenue by month",
+      "Return rate by category",
+      "Seller revenue by quarter",
+    ],
+  },
 };
 
 const ENDPOINT_LABELS: Record<string, string> = {
@@ -158,10 +193,10 @@ const DOC_STATUS_LABEL: Record<string, string> = {
 };
 
 const GENIE_STEPS: React.ReactNode[] = [
-  "Create a Smart-ERP Gold Genie Space.",
-  <>Add the published marketplace datasets described in <span className="evidence">docs/bi.md</span>.</>,
-  "Copy the Genie Space ID.",
-  <>Set <span className="evidence">GENIE_SPACE_ID</span> on the backend.</>,
+  "Create a question-answering space for the published Smart-ERP reports.",
+  <>Add the published marketplace datasets described in the BI guide.</>,
+  "Copy the space ID.",
+  <>Save its ID as <span className="evidence">GENIE_SPACE_ID</span> in the backend settings.</>,
   "Restart the backend service.",
 ];
 
@@ -170,7 +205,7 @@ function GenieSetup() {
     <div role="alert" className="space-y-4 rounded-lg border border-warning/60 bg-warning/5 px-4 py-4">
       <TrustStatus
         status="setup_required"
-        label="Databricks needs setup before it can answer"
+        label="Genie AI needs setup before it can answer"
         summary="Complete these backend setup steps, then return here to ask the published marketplace data."
         variant="full"
       />
@@ -186,7 +221,7 @@ function GenieSetup() {
 function TermGenieSetup() {
   return (
     <div role="alert" className="space-y-3 rounded-xl border border-[var(--term-warn)]/60 p-4">
-      <p className="text-[15px] font-medium text-[var(--term-ink)]">Databricks needs setup before it can answer</p>
+      <p className="text-[15px] font-medium text-[var(--term-ink)]">Genie AI needs setup before it can answer</p>
       <p className="text-sm leading-relaxed text-[var(--term-mist)]">
         Complete these backend setup steps, then retry the question from this log.
       </p>
@@ -322,7 +357,7 @@ function TurnBlock({
               <p className="mt-1 text-sm leading-relaxed text-[var(--term-mist)]">
                 {turn.docs
                   ? "Your uploaded files have not been changed."
-                  : "Check the source capability in the rail, then retry the same question."}
+                  : "Check what each source can answer, then retry the same question."}
               </p>
             </div>
           </div>
@@ -472,18 +507,18 @@ export default function Assistant() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Decision support"
         title="Ask the marketplace"
-        question="Ask one business question. Answers come from governed marketplace data, uploaded knowledge or published Databricks datasets, with the supporting evidence kept beside the result."
+        question="Ask one business question. Answers come from recorded marketplace data, your uploaded files, or Genie AI over the published reports, with the supporting evidence kept beside the result."
       />
 
       <p className="max-w-3xl text-[15px] leading-relaxed text-muted-foreground">
         <span className="font-medium text-foreground">{activeMode.purpose}</span> {activeMode.bestFor}
       </p>
 
-      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-10">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
         <section aria-label="Marketplace terminal" className="term min-w-0 lg:col-span-8">
           <div className="border-b border-[var(--term-line)] px-4 py-4 sm:px-5">
             <p className="term-statusbar" role="status">
@@ -589,15 +624,15 @@ export default function Assistant() {
           </div>
         </section>
 
-        <aside aria-label="Knowledge and capability" className="min-w-0 space-y-8 lg:col-span-4">
+        <aside aria-label="Knowledge and capability" className="min-w-0 space-y-6 lg:col-span-4">
           <section aria-labelledby="rail-docs-heading" className="space-y-3">
-            <h2 id="rail-docs-heading" className="font-serif text-xl">Attached documents</h2>
+            <h2 id="rail-docs-heading" className="section-title">Attached documents</h2>
             {docsQuery.isError ? (
               <StackError message="Couldn't load attached documents." retry={() => void docsQuery.refetch()} />
             ) : docsQuery.isLoading ? (
               <p role="status" className="text-sm text-muted-foreground">Reading attached documents…</p>
             ) : documents.length === 0 ? (
-              <p className="text-[15px] text-muted-foreground">No files attached yet. Document answers wait for indexed files.</p>
+              <p className="text-[15px] text-muted-foreground">No files attached yet. Document answers need attached files.</p>
             ) : (
               <ul className="divide-y divide-border border-y border-border">
                 {documents.slice(0, 5).map((document) => (
@@ -619,12 +654,32 @@ export default function Assistant() {
           </section>
 
           <section aria-labelledby="rail-capability-heading" className="space-y-3">
-            <h2 id="rail-capability-heading" className="font-serif text-xl">Source capability</h2>
+            <h2 id="rail-capability-heading" className="section-title">What each source can answer</h2>
             {mode === "data" && trust && <TrustStatus status={trust.live_books.status} label={trust.live_books.label} summary={trust.live_books.summary} variant="full" />}
             {mode === "docs" && <TrustStatus status="limited" label="Ready uploaded documents required" summary="Document answers depend on indexed files. The answer will say when no supporting passage can be found." variant="full" />}
             {mode === "genie" && trust?.genie.status === "setup_required" && <GenieSetup />}
             {mode === "genie" && trust?.genie.status !== "setup_required" && trust && <TrustStatus status={trust.genie.status} label={trust.genie.label} summary={trust.genie.summary} variant="full" />}
             {trustUnavailable && mode !== "docs" && <TrustStatus status="unavailable" label="Capability status could not be confirmed" summary="You can still try a question. Any service problem will appear here with a recovery path." variant="full" />}
+            <div>
+              <p className="section-kicker mb-2">{HINTS[mode].title}</p>
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Suggested questions">
+                {HINTS[mode].items.map((hint) => (
+                  <button
+                    key={hint}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      setQuestion(hint);
+                      setValidation(null);
+                    }}
+                    className="rounded-full border border-border bg-card px-3 py-1.5 text-[13px] font-medium text-muted-foreground shadow-sm transition-colors hover:border-input hover:text-foreground disabled:opacity-50"
+                  >
+                    {hint}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">Choosing a suggestion fills the prompt — press Ask to send it.</p>
+            </div>
           </section>
 
           {mode === "docs" && !docsQuery.isLoading && readyDocs.length === 0 && (

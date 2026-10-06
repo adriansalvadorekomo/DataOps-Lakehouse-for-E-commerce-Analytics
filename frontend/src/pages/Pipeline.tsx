@@ -115,7 +115,7 @@ export default function Pipeline() {
   const run = data.workflow.last_run;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Data trust center"
         title="Why should I trust the numbers I’m seeing?"
@@ -129,8 +129,8 @@ export default function Pipeline() {
         }
       />
 
-      <section className="border-y border-border bg-card px-4 py-6 sm:px-6" aria-labelledby="overall-trust-title">
-        <p id="overall-trust-title" className="mb-4 section-kicker">
+      <section className="panel p-4 sm:p-5" aria-labelledby="overall-trust-title">
+        <p id="overall-trust-title" className="section-kicker mb-3">
           Overall evidence
         </p>
         <TrustStatus {...data.overall} variant="full" />
@@ -140,7 +140,7 @@ export default function Pipeline() {
       <section aria-labelledby="evidence-title">
         <div className="mb-6">
           <p className="section-kicker section-kicker--ember">Evidence chain</p>
-          <h2 id="evidence-title" className="mt-2 font-serif text-2xl tracking-tight">What the evidence says</h2>
+          <h2 id="evidence-title" className="mt-1 text-lg font-semibold tracking-tight">What the evidence says</h2>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
             Data collected → Records checked → Marketplace numbers prepared. Each step below shows its own actual status; later evidence does not erase an earlier issue.
           </p>
@@ -154,15 +154,15 @@ export default function Pipeline() {
           >
             <p className="text-sm leading-relaxed text-muted-foreground">{data.live_books.summary}</p>
             <dl className="mt-4 grid gap-3 sm:grid-cols-3">
-              <Fact label="Dataset’s latest order date">{dateLabel(data.live_books.source_as_of)}</Fact>
+              <Fact label="Latest order on record">{dateLabel(data.live_books.source_as_of)}</Fact>
               <Fact label="Checks passed">{data.live_books.checks_passed.toLocaleString("en-IN")} of {data.live_books.checks_total.toLocaleString("en-IN")}</Fact>
-              <Fact label="Violating records">{data.live_books.violations.toLocaleString("en-IN")}</Fact>
+              <Fact label="Records failing checks">{data.live_books.violations.toLocaleString("en-IN")}</Fact>
             </dl>
           </Stage>
 
           <Stage
             number="2"
-            title="Processing · Databricks workflow"
+            title="Processing · Latest analytics run"
             status={<TrustStatus status={data.workflow.status} label={data.workflow.label} />}
           >
             <p className="text-sm leading-relaxed text-muted-foreground">{data.workflow.summary}</p>
@@ -171,17 +171,17 @@ export default function Pipeline() {
                 <Fact label="Last run started">{dateTimeLabel(run.started_at)}</Fact>
                 <Fact label="Last run ended">{dateTimeLabel(run.ended_at)}</Fact>
                 <Fact label="Duration">{durationLabel(run.duration_seconds)}</Fact>
-                <Fact label="Result">{resultLabel(run.result)}</Fact>
+                <Fact label="Outcome">{resultLabel(run.result)}</Fact>
               </dl>
             ) : (
-              <p className="mt-4 text-sm text-muted-foreground">No workflow run was returned by the workspace.</p>
+              <p className="mt-4 text-sm text-muted-foreground">No processing run was reported.</p>
             )}
             <p className="mt-4 text-sm"><span className="font-medium text-foreground">Business impact:</span> <span className="text-muted-foreground">{data.workflow.business_impact}</span></p>
           </Stage>
 
           <Stage
             number="3"
-            title="Published numbers · Dated contract validation"
+            title="Published numbers · Validation snapshot"
             status={<TrustStatus status={data.published_data.status} label={data.published_data.label} />}
           >
             <p className="text-sm leading-relaxed text-muted-foreground">{data.published_data.summary}</p>
@@ -190,16 +190,16 @@ export default function Pipeline() {
               <Fact label="Validated rows">{data.published_data.rows.toLocaleString("en-IN")}</Fact>
               <Fact label="Validated revenue">{formatINR(data.published_data.revenue, 0)}</Fact>
             </dl>
-            <p className="mt-4 text-xs font-medium text-muted-foreground">Contract validation snapshot, not a live query.</p>
+            <p className="mt-4 text-xs font-medium text-muted-foreground">Checked on the validation date above — not a live lookup.</p>
           </Stage>
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(16rem,1fr)]" aria-labelledby="activity-title">
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(16rem,1fr)]" aria-labelledby="activity-title">
         <Card className="shadow-none">
           <CardHeader>
-            <p className="section-kicker">Workspace evidence</p>
-            <CardTitle id="activity-title">Recent activity</CardTitle>
+            <p className="section-kicker">Processing history</p>
+            <CardTitle id="activity-title">Latest run</CardTitle>
           </CardHeader>
           <CardContent>
             {run ? (
@@ -207,7 +207,7 @@ export default function Pipeline() {
                 <dl className="grid gap-3 sm:grid-cols-3">
                   <Fact label="Run date and time">{dateTimeLabel(run.started_at)}</Fact>
                   <Fact label="Duration">{durationLabel(run.duration_seconds)}</Fact>
-                  <Fact label="Result">{resultLabel(run.result)}</Fact>
+                  <Fact label="Outcome">{resultLabel(run.result)}</Fact>
                 </dl>
                 <p className="mt-5 text-sm leading-relaxed text-muted-foreground">{data.workflow.business_impact}</p>
               </div>
@@ -230,7 +230,7 @@ export default function Pipeline() {
               secondary="Checks run against committed marketplace records."
             />
             <div className="border-t border-border py-3">
-              <p className="flex items-baseline justify-between gap-4 text-sm"><span className="font-medium">Violating records</span><span className="font-semibold tabular-nums">{data.live_books.violations.toLocaleString("en-IN")}</span></p>
+              <p className="flex items-baseline justify-between gap-4 text-sm"><span className="font-medium">Records failing checks</span><span className="font-semibold tabular-nums">{data.live_books.violations.toLocaleString("en-IN")}</span></p>
             </div>
             <Link to="/operations" className="mt-2 inline-block text-sm font-medium text-link hover:underline">View check details</Link>
           </CardContent>
@@ -240,9 +240,9 @@ export default function Pipeline() {
       <section aria-labelledby="ai-title">
         <div className="mb-5">
           <p className="section-kicker section-kicker--ember">Analytical services</p>
-          <h2 id="ai-title" className="mt-2 font-serif text-2xl tracking-tight">AI and forecast readiness</h2>
+          <h2 id="ai-title" className="mt-1 text-lg font-semibold tracking-tight">AI and forecast readiness</h2>
         </div>
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           <Card className="shadow-none">
             <CardHeader><CardTitle>Revenue forecast</CardTitle></CardHeader>
             <CardContent>
@@ -254,14 +254,14 @@ export default function Pipeline() {
             </CardContent>
           </Card>
           <Card className="shadow-none">
-            <CardHeader><CardTitle>Genie readiness</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Ask with Genie AI</CardTitle></CardHeader>
             <CardContent>
               <TrustStatus status={data.genie.status} label={data.genie.label} summary={data.genie.summary} variant="full" />
               {data.genie.status === "setup_required" && (
                 <ol className="ml-5 mt-5 list-decimal space-y-2 text-sm leading-relaxed text-muted-foreground">
-                  <li>Create the Smart-ERP Gold Genie Space.</li>
+                  <li>Create a question-answering space for the published Smart-ERP reports.</li>
                   <li>Add the published marketplace datasets.</li>
-                  <li>Set <span className="font-mono text-foreground">GENIE_SPACE_ID</span> on the backend.</li>
+                  <li>Save its ID as <span className="font-mono text-foreground">GENIE_SPACE_ID</span> in the backend settings.</li>
                 </ol>
               )}
             </CardContent>
@@ -269,15 +269,15 @@ export default function Pipeline() {
         </div>
       </section>
 
-      <Disclosure eyebrow="Evidence boundaries" summary="How business stages map to the technical data path">
+      <Disclosure eyebrow="Evidence boundaries" summary="How the business stages map to the underlying data">
         <div className="grid gap-5 md:grid-cols-2">
           <div>
             <p className="font-medium text-foreground">Data collected and records checked</p>
-            <p className="mt-1">PostgreSQL is the live marketplace book checked by the backend. In the workspace, Bronze lands source records, Silver prepares entities, and DQ applies integrity rules. Live-book checks do not prove a Databricks workflow completed.</p>
+            <p className="mt-1">Recorded orders live in the marketplace database, which the backend checks directly. The analytics workspace keeps its own copies: raw arrivals, cleaned records, and quality checks. Book checks don&apos;t show whether the latest analytics processing finished.</p>
           </div>
           <div>
             <p className="font-medium text-foreground">Marketplace numbers prepared</p>
-            <p className="mt-1">Gold is the published reporting contract. Its row and revenue figures here are a dated validation snapshot, while workflow status is current REST metadata. Neither is presented as a live Gold query.</p>
+            <p className="mt-1">Published reports are the validated figures. Their row and revenue counts were checked on the validation date, while processing status is read live from the workspace. Neither is a live lookup of the reports.</p>
           </div>
           <div>
             <p className="font-medium text-foreground">Three different dates</p>
@@ -285,7 +285,7 @@ export default function Pipeline() {
           </div>
           <div>
             <p className="font-medium text-foreground">Credentials and normalization</p>
-            <p className="mt-1">The backend owns workspace credentials and normalizes Databricks REST responses into these statuses. No personal access token is sent to the browser.</p>
+            <p className="mt-1">The backend holds the workspace sign-in and turns workspace responses into these statuses. Sign-in details never reach the browser.</p>
             <a href={WORKSPACE_URL} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 font-medium text-link hover:underline">
               Open Databricks workspace <ExternalLink size={14} aria-hidden="true" />
               <span className="sr-only">(opens in a new tab)</span>

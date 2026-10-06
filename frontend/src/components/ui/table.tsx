@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
     <div className="relative w-full overflow-auto">
-      <table ref={ref} className={cn("w-full caption-bottom text-[15px]", className)} {...props} />
+      <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
     </div>
   ),
 );
@@ -13,7 +13,7 @@ Table.displayName = "Table";
 
 const TableHeader = React.forwardRef<HTMLTableSectionElement, React.HTMLAttributes<HTMLTableSectionElement>>(
   ({ className, ...props }, ref) => (
-    <thead ref={ref} className={cn("sticky top-0 z-10 bg-card [&_tr]:border-b", className)} {...props} />
+    <thead ref={ref} className={cn("sticky top-0 z-10 bg-muted [&_tr]:border-b", className)} {...props} />
   ),
 );
 TableHeader.displayName = "TableHeader";
@@ -41,7 +41,7 @@ const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<
     <th
       ref={ref}
       className={cn(
-        "h-11 whitespace-nowrap px-4 text-left align-middle text-[13px] font-medium normal-case tracking-normal text-muted-foreground",
+        "h-10 whitespace-nowrap px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-muted-foreground",
         className,
       )}
       {...props}
@@ -52,7 +52,7 @@ TableHead.displayName = "TableHead";
 
 const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement>>(
   ({ className, ...props }, ref) => (
-    <td ref={ref} className={cn("min-h-11 px-4 py-3 align-middle", className)} {...props} />
+    <td ref={ref} className={cn("min-h-10 px-4 py-2.5 align-middle", className)} {...props} />
   ),
 );
 TableCell.displayName = "TableCell";

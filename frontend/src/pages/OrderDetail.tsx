@@ -117,7 +117,7 @@ export default function OrderDetail() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {backLink}
       <EntityHeader
         title={`Order #${currentOrder.order_id}`}
@@ -139,7 +139,7 @@ export default function OrderDetail() {
               <li
                 key={step.label}
                 aria-current={step.state === "current" ? "step" : undefined}
-                className="flex items-start gap-3 border-t-2 border-border pt-3"
+                className="panel flex items-start gap-3 p-3.5"
               >
                 <span
                   aria-hidden="true"
@@ -162,7 +162,7 @@ export default function OrderDetail() {
       </section>
 
       <section aria-labelledby="items-heading" className="space-y-3">
-        <h2 id="items-heading" className="font-serif text-xl">Items</h2>
+        <h2 id="items-heading" className="section-title">Items</h2>
         <Card className="overflow-hidden">
           <CardContent className="p-0">
             <Table>
@@ -204,22 +204,22 @@ export default function OrderDetail() {
         </Card>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <section aria-labelledby="fulfillment-heading">
-          <Card className="h-full shadow-none">
+          <Card className="h-full">
             <CardHeader><CardTitle>Fulfillment</CardTitle></CardHeader>
             <CardContent>
               <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
-                <div><dt className="text-[13px] text-muted-foreground">Ship to</dt><dd className="mt-1 text-[15px] font-medium">{currentOrder.ship_to_city}</dd></div>
-                <div><dt className="text-[13px] text-muted-foreground">Shipping time</dt><dd className="mt-1 text-[15px] font-medium tabular-nums">{currentOrder.shipping_time_days}d</dd></div>
-                <div><dt className="text-[13px] text-muted-foreground">Payment</dt><dd className="mt-1 text-[15px] font-medium">{currentOrder.payment_method}</dd></div>
-                <div><dt className="text-[13px] text-muted-foreground">Device</dt><dd className="mt-1 text-[15px] font-medium">{currentOrder.device}</dd></div>
+                <div><dt className="section-kicker">Ship to</dt><dd className="mt-1 text-sm font-semibold">{currentOrder.ship_to_city}</dd></div>
+                <div><dt className="section-kicker">Shipping time</dt><dd className="mt-1 text-[15px] font-medium tabular-nums">{currentOrder.shipping_time_days}d</dd></div>
+                <div><dt className="section-kicker">Payment</dt><dd className="mt-1 text-sm font-semibold">{currentOrder.payment_method}</dd></div>
+                <div><dt className="section-kicker">Device</dt><dd className="mt-1 text-sm font-semibold">{currentOrder.device}</dd></div>
               </dl>
             </CardContent>
           </Card>
         </section>
         <section aria-labelledby="seller-context-heading">
-          <Card className="h-full shadow-none">
+          <Card className="h-full">
             <CardHeader><CardTitle>Seller context</CardTitle></CardHeader>
             <CardContent>
               {sellerContext.isError ? (
@@ -229,10 +229,10 @@ export default function OrderDetail() {
               ) : sellerRow && primarySellerId ? (
                 <div className="space-y-3">
                   <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
-                    <div><dt className="text-[13px] text-muted-foreground">Revenue</dt><dd className="mt-1 text-[15px] font-medium tabular-nums">{formatINR(sellerRow.revenue, 0)}</dd></div>
-                    <div><dt className="text-[13px] text-muted-foreground">Lines</dt><dd className="mt-1 text-[15px] font-medium tabular-nums">{sellerRow.lines.toLocaleString("en-IN")}</dd></div>
-                    <div><dt className="text-[13px] text-muted-foreground">Delayed share</dt><dd className="mt-1 text-[15px] font-medium tabular-nums">{formatPercent(sellerRow.delayed_rate, 0)}</dd></div>
-                    <div><dt className="text-[13px] text-muted-foreground">Return rate</dt><dd className="mt-1 text-[15px] font-medium tabular-nums">{formatPercent(sellerRow.return_rate, 0)}</dd></div>
+                    <div><dt className="section-kicker">Revenue</dt><dd className="mt-1 text-[15px] font-medium tabular-nums">{formatINR(sellerRow.revenue, 0)}</dd></div>
+                    <div><dt className="section-kicker">Lines</dt><dd className="mt-1 text-[15px] font-medium tabular-nums">{sellerRow.lines.toLocaleString("en-IN")}</dd></div>
+                    <div><dt className="section-kicker">Delayed share</dt><dd className="mt-1 text-[15px] font-medium tabular-nums">{formatPercent(sellerRow.delayed_rate, 0)}</dd></div>
+                    <div><dt className="section-kicker">Return rate</dt><dd className="mt-1 text-[15px] font-medium tabular-nums">{formatPercent(sellerRow.return_rate, 0)}</dd></div>
                   </dl>
                   <Link to={`/sellers/${primarySellerId}`} className="text-link inline-flex min-h-11 items-center text-[15px] font-medium hover:underline">
                     Open {primarySellerId}
@@ -250,7 +250,7 @@ export default function OrderDetail() {
       </div>
 
       <section aria-labelledby="related-heading">
-        <h2 id="related-heading" className="mb-2 font-serif text-xl">Related</h2>
+        <h2 id="related-heading" className="mb-2 section-title">Related</h2>
         <div className="flex flex-wrap gap-x-6 gap-y-2">
           <Link to={`/customers/${currentOrder.customer_id}`} className="text-link inline-flex min-h-11 items-center text-[15px] font-medium hover:underline">
             Customer {currentOrder.customer_id}
@@ -267,8 +267,8 @@ export default function OrderDetail() {
       </section>
 
       {success && (
-        <div aria-live="polite" aria-atomic="true" className="flex items-center gap-2 rounded-lg border border-emerald-700/50 bg-card px-4 py-3 text-[15px] text-foreground">
-          <Check size={17} className="text-emerald-700" aria-hidden="true" />
+        <div aria-live="polite" aria-atomic="true" className="panel flex items-center gap-2 border-success/50 px-4 py-3 text-sm text-foreground">
+          <Check size={16} className="text-success" aria-hidden="true" />
           <span>{success}</span>
         </div>
       )}
@@ -279,7 +279,7 @@ export default function OrderDetail() {
             role="alertdialog"
             aria-labelledby="status-confirm-title"
             aria-describedby="status-confirm-description"
-            className="flex flex-wrap items-center gap-2 border-y border-border py-4"
+            className="panel flex flex-wrap items-center gap-2 p-4"
             onKeyDown={(event) => {
               if (event.key === "Escape" && !transition.isPending) {
                 event.preventDefault();

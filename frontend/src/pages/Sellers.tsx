@@ -59,15 +59,15 @@ export default function Sellers() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Seller performance"
         title="Sellers"
         question={rows.length > 0 ? `${flaggedCount} of ${rows.length} sellers in the top-50 revenue set need attention.` : "Who performs — and who needs attention?"}
-        caption="Search and attention filters are applied locally within the top 50 sellers by revenue; they do not search every seller in the marketplace."
+        caption="Search and attention filters cover only the top 50 sellers by revenue; they don't search the whole marketplace."
       />
 
-      <div className="grid gap-4 border-y border-border bg-card/60 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:px-5">
+      <div className="panel grid gap-4 px-4 py-3.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <Field label="Search seller ID within top 50" htmlFor="seller-search">
           <Input id="seller-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} className="min-h-11" autoComplete="off" />
         </Field>
@@ -84,10 +84,10 @@ export default function Sellers() {
       {sellers.isError ? (
         <StackError message="Couldn't load the top 50 sellers." retry={() => sellers.refetch()} />
       ) : sellers.isLoading ? (
-        <p role="status" className="text-[15px] text-muted-foreground">Summarizing the top-50 set…</p>
+        <p role="status" className="text-sm text-muted-foreground">Summarizing the top-50 set…</p>
       ) : rows.length > 0 ? (
         <section aria-label="Top-50 set summary">
-          <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Metric label="Need attention" value={`${flaggedCount} of ${rows.length}`} scope="Top 50 by revenue" interpretation="Sellers tripping any screening rule in the returned set." tone={flaggedCount > 0 ? "attention" : "normal"} />
             <Metric label="Set revenue" value={formatINR(setRevenue, 0)} scope="Top 50 by revenue" interpretation="Revenue across the returned set; no period comparison." />
             <Metric label="Average rating" value={setRating == null ? "—" : setRating.toFixed(1)} scope="Top 50 by revenue" interpretation="Mean of current seller ratings in the returned set." />

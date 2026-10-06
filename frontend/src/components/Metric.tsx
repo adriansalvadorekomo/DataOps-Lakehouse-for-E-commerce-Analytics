@@ -18,6 +18,7 @@ export function Metric({
   scope,
   comparison,
   direction = "neutral",
+  polarity,
   interpretation,
   tone = "normal",
   className,
@@ -29,6 +30,10 @@ export function Metric({
   scope?: React.ReactNode;
   comparison?: string | null;
   direction?: MetricDirection;
+  /** Finance polarity: which move direction is good. Colors the delta chip
+      green/red; flat or unset polarity stays neutral. Icon + words remain so
+      color is never the sole signal. */
+  polarity?: "good-up" | "good-down";
   interpretation?: React.ReactNode;
   tone?: "normal" | "attention";
   className?: string;
@@ -39,21 +44,23 @@ export function Metric({
 }) {
   const detail = directionDetails[direction];
   const DirectionIcon = detail.icon;
+  const moved = direction === "up" || direction === "down";
+  const good = !moved || !polarity ? null : (polarity === "good-up") === (direction === "up");
 
   return (
     <section
       className={cn(
-        "min-w-0 border-t border-border bg-card/70 py-4",
-        tone === "attention" && "border-warning",
+        "panel min-w-0 p-4",
+        tone === "attention" && "border-warning/60",
         className,
       )}
       aria-label={label}
     >
       <div className="flex min-w-0 items-start justify-between gap-4">
-        <p className="text-[13px] font-medium text-muted-foreground">{label}</p>
+        <p className="section-kicker">{label}</p>
         {scope && <p className="shrink-0 text-right text-xs text-muted-foreground">{scope}</p>}
       </div>
-      <p className="mt-2 break-words text-[clamp(1.6rem,3vw,2rem)] font-semibold leading-none tracking-tight tabular-nums text-foreground">
+      <p className="mt-2 break-words text-[1.65rem] font-semibold leading-none tracking-tight tabular-nums text-foreground">
         {to ? (
           <Link to={to} className="rounded-sm underline-offset-4 hover:underline focus-visible:outline-none">
             {value}
@@ -63,10 +70,17 @@ export function Metric({
         )}
       </p>
       {comparison != null && comparison !== "" && (
-        <p className="mt-3 flex items-center gap-1.5 text-[13px] text-foreground">
-          <DirectionIcon size={14} strokeWidth={2} aria-hidden="true" />
-          <span className="font-medium">{detail.text}:</span>
-          <span className="tabular-nums text-muted-foreground">{comparison}</span>
+        <p
+          className={cn(
+            "mt-2.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium tabular-nums",
+            good === true && "bg-success/10 text-success",
+            good === false && "bg-destructive/10 text-destructive",
+            good == null && "bg-secondary text-foreground",
+          )}
+        >
+          <DirectionIcon size={13} strokeWidth={2.25} aria-hidden="true" />
+          <span className="sr-only">{detail.text}:</span>
+          <span className={cn(good == null && "text-muted-foreground")}>{comparison}</span>
         </p>
       )}
       {interpretation && (

@@ -57,7 +57,7 @@ export default function CustomerDetail() {
   const latest = [...rows].sort((a, b) => (a.order_date < b.order_date ? 1 : -1))[0];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {backLink}
       <EntityHeader
         title={customerId}
@@ -71,7 +71,7 @@ export default function CustomerDetail() {
       />
 
       <section aria-label="Customer summary">
-        <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <Metric label="Returned orders" value={rows.length >= 100 ? "100+" : rows.length.toLocaleString("en-IN")} scope="Latest returned" interpretation="Counts stop at 100 returned rows; lifetime totals need the customer summary contract." />
           <Metric label="Paid in set" value={formatINR(total, 0)} scope="Returned orders" interpretation="Sum of line totals across the returned orders." />
           <Metric label="Return rate in set" value={formatPercent(returned / rows.length)} scope="Returned orders" interpretation="Share of returned orders with a returned outcome." to="/operations" />
@@ -79,7 +79,7 @@ export default function CustomerDetail() {
       </section>
 
       <section aria-labelledby="orders-heading" className="space-y-3">
-        <h2 id="orders-heading" className="font-serif text-xl">Orders</h2>
+        <h2 id="orders-heading" className="section-title">Orders</h2>
         <Card className="overflow-hidden">
           <CardContent className="p-0">
             <div className="overflow-x-auto">

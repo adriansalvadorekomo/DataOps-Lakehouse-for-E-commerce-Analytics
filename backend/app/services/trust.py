@@ -175,20 +175,20 @@ def _genie_status() -> dict:
     if not os.environ.get("GENIE_SPACE_ID"):
         return {
             "status": "setup_required",
-            "label": "Databricks questions need setup",
+            "label": "Genie AI questions need setup",
             "summary": "Create the Smart-ERP Genie Space over published marketplace data, then set GENIE_SPACE_ID on the backend.",
             "setup_guide": "docs/bi.md",
         }
     if not os.environ.get("DATABRICKS_HOST") or not os.environ.get("DATABRICKS_TOKEN"):
         return {
             "status": "unavailable",
-            "label": "Databricks questions unavailable",
+            "label": "Genie AI questions unavailable",
             "summary": "The Genie Space is selected, but the backend workspace connection is incomplete.",
             "setup_guide": "docs/bi.md",
         }
     return {
         "status": "ready",
-        "label": "Databricks questions configured",
+        "label": "Genie AI questions configured",
         "summary": "Questions can be sent to the configured Genie Space over published marketplace data.",
         "setup_guide": "docs/bi.md",
     }

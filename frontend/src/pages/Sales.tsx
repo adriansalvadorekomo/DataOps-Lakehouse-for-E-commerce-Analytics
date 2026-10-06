@@ -17,6 +17,7 @@ import { useSortedRows } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import { MeterRow } from "@/components/MeterRow";
+import { Metric } from "@/components/Metric";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { ChartSkeleton, EmptyState, PageHeader, SortTh, StackError, TableSkeleton } from "@/components/PageHeader";
 
@@ -57,6 +58,7 @@ export default function Sales() {
   const series = months.map((month) => ({ month, ...byMonth[month] }));
   const cityTotal = (cities.data ?? []).reduce((sum, city) => sum + city.revenue, 0);
   const categoryTotal = (categories.data ?? []).reduce((sum, category) => sum + category.revenue, 0);
+  const bandTotal = (bands.data ?? []).reduce((sum, band) => sum + band.revenue, 0);
   const sellerSort = useSortedRows(sellers.data ?? [], "revenue", {
     seller: (seller: TopSeller) => seller.seller_id,
     lines: (seller: TopSeller) => seller.lines,
@@ -64,38 +66,51 @@ export default function Sales() {
     revenue: (seller: TopSeller) => seller.revenue,
   });
   const leadingCategory = [...(categories.data ?? [])].sort((a, b) => b.revenue - a.revenue)[0];
+  const topCity = [...(cities.data ?? [])].sort((a, b) => b.revenue - a.revenue)[0];
+  const topBand = [...(bands.data ?? [])].sort((a, b) => b.revenue - a.revenue)[0];
   const maxBandRevenue = Math.max(...(bands.data ?? []).map((band) => band.revenue), 1);
+  const kpiReady = leadingCategory && categoryTotal > 0 && topCity && cityTotal > 0 && topBand && bandTotal > 0;
+  const kpiLoading = categories.isLoading || cities.isLoading || bands.isLoading;
+  const kpiError = categories.isError || cities.isError || bands.isError;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <PageHeader eyebrow="Sales performance" title="Revenue" question="What is driving sales, and what changed by category?" />
 
-      <div className="border-y border-border bg-card/60 px-4 py-4 sm:px-5">
+      <div className="panel px-4 py-3.5">
         <SegmentedControl label="Category trend window" value={period} onChange={setPeriod} options={PERIODS} getOptionLabel={(value) => `${value} months`} />
-        <p className="mt-3 text-sm text-muted-foreground">The chart uses the latest {monthsSelected} calendar months returned by the category trend.</p>
+        <p className="mt-2 text-sm text-muted-foreground">The chart uses the latest {monthsSelected} calendar months returned by the category trend.</p>
       </div>
 
-      <section aria-labelledby="category-change-heading" className="space-y-4">
-        <div>
-          <p className="section-kicker section-kicker--ember">Trend</p>
-          <h2 id="category-change-heading" className="mt-1 font-serif text-2xl">What changed by category</h2>
-        </div>
+      {kpiError ? (
+        <StackError message="Couldn't load the revenue headline." retry={() => { categories.refetch(); cities.refetch(); bands.refetch(); }} />
+      ) : kpiLoading ? (
+        <p role="status" className="text-sm text-muted-foreground">Reading the revenue headline…</p>
+      ) : kpiReady ? (
+        <section aria-label="Revenue headline">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Metric label="Leading category" value={`${leadingCategory.category} ${formatPercent(leadingCategory.revenue / categoryTotal, 0)}`} scope="Share of returned category revenue" interpretation={`${formatINR(leadingCategory.revenue, 0)} of ${formatINR(categoryTotal, 0)} tracked.`} to="/sales" />
+            <Metric label="Top metro" value={`${topCity.city} ${formatPercent(topCity.revenue / cityTotal, 0)}`} scope="Share of returned metro revenue" interpretation={`${topCity.orders.toLocaleString("en-IN")} orders on the books.`} to="/operations" />
+            <Metric label="Heaviest discount band" value={`${topBand.band}% off · ${formatPercent(topBand.revenue / bandTotal, 0)}`} scope="Share of banded revenue" interpretation={`${topBand.lines.toLocaleString("en-IN")} discounted lines in this band.`} to="/sales" />
+          </div>
+        </section>
+      ) : (
+        <EmptyState title="No revenue headline yet" body="Category, metro and discount signals appear once sales are recorded." />
+      )}
+
+      <section aria-labelledby="category-change-heading" className="space-y-3">
+        <h2 id="category-change-heading" className="section-title">Category momentum · latest {monthsSelected} months</h2>
         {categories.isLoading ? (
-          <p role="status" className="text-[15px] text-muted-foreground">Reading category totals…</p>
+          <p role="status" className="text-sm text-muted-foreground">Reading category totals…</p>
         ) : categories.isError ? (
           <StackError message="Couldn't load the category insight." retry={() => categories.refetch()} />
         ) : !leadingCategory || categoryTotal <= 0 ? (
           <EmptyState title="No category insight yet" body="Category contribution appears once product sales are recorded." />
         ) : (
-          <p className="text-[15px] text-muted-foreground">From the returned category totals, {leadingCategory.category} contributes the largest revenue share at {formatPercent(leadingCategory.revenue / categoryTotal, 0)}. The trend below shows the selected monthly history without inventing a period comparison.</p>
+          <p className="text-sm text-muted-foreground">{leadingCategory.category} contributes the largest revenue share at {formatPercent(leadingCategory.revenue / categoryTotal, 0)}. Colour and line pattern both distinguish categories.</p>
         )}
-
         <Card>
-          <CardHeader>
-            <CardTitle>Monthly category revenue · latest {monthsSelected} months</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="mb-4 text-[13px] text-muted-foreground">Colour and line pattern both distinguish categories across the selected {monthsSelected}-month response.</p>
+          <CardContent className="pt-4">
             <div className="h-72">
               {trend.isError ? (
                 <StackError message="Couldn't load category momentum." retry={() => trend.refetch()} />
@@ -122,66 +137,59 @@ export default function Sales() {
         </Card>
       </section>
 
-      <section aria-labelledby="category-mix-heading" className="space-y-4">
-        <div>
-          <p className="section-kicker section-kicker--ember">Mix</p>
-          <h2 id="category-mix-heading" className="mt-1 font-serif text-2xl">Category mix</h2>
-        </div>
-        <Card>
-          <CardHeader><CardTitle>Share of returned category revenue</CardTitle></CardHeader>
-          <CardContent className="divide-y divide-border">
-            {categories.isError ? (
-              <StackError message="Couldn't load the category mix." retry={() => categories.refetch()} />
-            ) : categories.isLoading ? (
-              <ChartSkeleton />
-            ) : (categories.data ?? []).length === 0 || categoryTotal <= 0 ? (
-              <EmptyState title="No category mix yet" body="Category contribution appears once product sales are recorded." />
-            ) : (
-              [...(categories.data ?? [])]
-                .sort((a, b) => b.revenue - a.revenue)
-                .map((category) => (
-                  <MeterRow
-                    key={category.category}
-                    label={category.category}
-                    value={category.revenue}
-                    max={categoryTotal}
-                    valueLabel={formatINR(category.revenue, 0)}
-                    secondary={`${formatPercent(category.revenue / categoryTotal, 0)} of returned category revenue · ${category.lines.toLocaleString("en-IN")} lines`}
-                  />
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <section aria-labelledby="category-mix-heading" className="min-w-0 space-y-3">
+          <h2 id="category-mix-heading" className="section-title">Category mix</h2>
+          <Card>
+            <CardHeader><CardTitle>Share of returned category revenue</CardTitle></CardHeader>
+            <CardContent className="divide-y divide-border">
+              {categories.isError ? (
+                <StackError message="Couldn't load the category mix." retry={() => categories.refetch()} />
+              ) : categories.isLoading ? (
+                <ChartSkeleton />
+              ) : (categories.data ?? []).length === 0 || categoryTotal <= 0 ? (
+                <EmptyState title="No category mix yet" body="Category contribution appears once product sales are recorded." />
+              ) : (
+                [...(categories.data ?? [])]
+                  .sort((a, b) => b.revenue - a.revenue)
+                  .map((category) => (
+                    <MeterRow
+                      key={category.category}
+                      label={category.category}
+                      value={category.revenue}
+                      max={categoryTotal}
+                      valueLabel={formatINR(category.revenue, 0)}
+                      secondary={`${formatPercent(category.revenue / categoryTotal, 0)} of returned category revenue · ${category.lines.toLocaleString("en-IN")} lines`}
+                    />
+                  ))
+              )}
+            </CardContent>
+          </Card>
+        </section>
+
+        <section aria-labelledby="revenue-source-heading" className="min-w-0 space-y-3">
+          <h2 id="revenue-source-heading" className="section-title">Where revenue comes from</h2>
+          <Card>
+            <CardHeader><CardTitle>Revenue by metro</CardTitle></CardHeader>
+            <CardContent className="divide-y divide-border">
+              {cities.isError ? (
+                <StackError message="Couldn't load metro revenue." retry={() => cities.refetch()} />
+              ) : cities.isLoading ? (
+                <ChartSkeleton />
+              ) : (cities.data ?? []).length === 0 ? (
+                <EmptyState title="No metro revenue yet" body="Metro contribution appears once orders are on the books." />
+              ) : (
+                (cities.data ?? []).map((city) => (
+                  <MeterRow key={city.city} label={city.city} value={city.revenue} max={cityTotal} valueLabel={formatINR(city.revenue, 0)} secondary={`${formatPercent(city.revenue / (cityTotal || 1), 0)} of returned metro revenue · ${city.orders.toLocaleString("en-IN")} orders`} />
                 ))
-            )}
-          </CardContent>
-        </Card>
-      </section>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+      </div>
 
-      <section aria-labelledby="revenue-source-heading" className="space-y-4">
-        <div>
-          <p className="section-kicker section-kicker--ember">Geography</p>
-          <h2 id="revenue-source-heading" className="mt-1 font-serif text-2xl">Where revenue comes from</h2>
-        </div>
-        <Card>
-          <CardHeader><CardTitle>Revenue by metro</CardTitle></CardHeader>
-          <CardContent className="divide-y divide-border">
-            {cities.isError ? (
-              <StackError message="Couldn't load metro revenue." retry={() => cities.refetch()} />
-            ) : cities.isLoading ? (
-              <ChartSkeleton />
-            ) : (cities.data ?? []).length === 0 ? (
-              <EmptyState title="No metro revenue yet" body="Metro contribution appears once orders are on the books." />
-            ) : (
-              (cities.data ?? []).map((city) => (
-                <MeterRow key={city.city} label={city.city} value={city.revenue} max={cityTotal} valueLabel={formatINR(city.revenue, 0)} secondary={`${formatPercent(city.revenue / (cityTotal || 1), 0)} of returned metro revenue · ${city.orders.toLocaleString("en-IN")} orders`} />
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </section>
-
-      <section aria-labelledby="levers-heading" className="space-y-4">
-        <div>
-          <p className="section-kicker section-kicker--ember">Discounting</p>
-          <h2 id="levers-heading" className="mt-1 font-serif text-2xl">Commercial levers</h2>
-        </div>
+      <section aria-labelledby="levers-heading" className="space-y-3">
+        <h2 id="levers-heading" className="section-title">Commercial levers</h2>
         <Card>
           <CardHeader><CardTitle>Seller-funded discount bands</CardTitle></CardHeader>
           <CardContent>
@@ -203,11 +211,8 @@ export default function Sales() {
         </Card>
       </section>
 
-      <section aria-labelledby="seller-revenue-heading" className="space-y-4">
-        <div>
-          <p className="section-kicker section-kicker--ember">Sellers</p>
-          <h2 id="seller-revenue-heading" className="mt-1 font-serif text-2xl">Seller revenue</h2>
-        </div>
+      <section aria-labelledby="seller-revenue-heading" className="space-y-3">
+        <h2 id="seller-revenue-heading" className="section-title">Seller revenue</h2>
         <Card className="overflow-hidden">
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
             <CardTitle>Who drives revenue · top 8 returned</CardTitle>
@@ -215,7 +220,7 @@ export default function Sales() {
           </CardHeader>
           <CardContent className="p-0">
             {sellers.isError ? (
-              <div className="p-5"><StackError message="Couldn't load seller revenue." retry={() => sellers.refetch()} /></div>
+              <div className="p-4"><StackError message="Couldn't load seller revenue." retry={() => sellers.refetch()} /></div>
             ) : sellers.isLoading ? (
               <TableSkeleton />
             ) : (sellers.data ?? []).length === 0 ? (

@@ -31,12 +31,12 @@ export function StatusPill({ status, className }: { status: DeliveryStatus; clas
   return (
     <span
       className={cn(
-        "inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-1 text-[13px] font-medium",
+        "inline-flex min-h-7 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
         tone,
         className,
       )}
     >
-      <Icon size={13} strokeWidth={2.25} aria-hidden="true" />
+      <Icon size={12} strokeWidth={2.25} aria-hidden="true" />
       {label}
     </span>
   );
