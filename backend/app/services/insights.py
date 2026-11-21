@@ -161,9 +161,9 @@ def seller_outliers(session: Session, w: Window) -> list[dict]:
     out = []
     for flag, rate_key, p90_key, p50_key, kpi, label, sig_id in (
         ("late_deliveries", "delayed_rate", "delayed_p90", "delayed_p50", "K4",
-         "deliver late more often than 90% of their peers", "sellers-late"),
+         "deliver late significantly more often than their peers", "sellers-late"),
         ("returns", "return_rate", "return_p90", "return_p50", "K3",
-         "get more returns than 90% of their peers", "sellers-returns"),
+         "get significantly more returns than their peers", "sellers-returns"),
     ):
         flagged = sorted((s for s in sellers if flag in s["flags"]),
                          key=lambda s: s["revenue"], reverse=True)
@@ -177,7 +177,8 @@ def seller_outliers(session: Session, w: Window) -> list[dict]:
             title=f"{len(flagged)} sellers {label}",
             metric=len(flagged), baseline=peers[p90_key], unit="count",
             evidence=[f"Peer median {_pct(peers[p50_key])}, 90th percentile {_pct(peers[p90_key])} "
-                      f"(sellers with ≥ {peers['min_orders']} orders)",
+                      f"(sellers with ≥ {peers['min_orders']} orders); flagged only when also "
+                      "significantly above the pooled peer rate (z ≥ 2)",
                       f"They carry {_pct(share)} of revenue in this window"]
             + [f"{s['seller_id']}: {_pct(s[rate_key])} on {s['orders']} orders" for s in top],
             next_step=("Review delivery SLAs with these sellers, starting with the largest."
@@ -225,7 +226,9 @@ def transit_backlog(session: Session, w: Window) -> list[dict]:
 # ── inventory / returns ─────────────────────────────────────────────────────
 def stockout_risk(session: Session, w: Window) -> list[dict]:
     cover = analytics.stock_cover(session, w.as_of, limit=200)
-    urgent = [i for i in cover["items"] if i["days_of_cover"] is not None and i["days_of_cover"] <= 14]
+    # Products that still have stock but will run out soon (zero stock is its own signal).
+    urgent = [i for i in cover["items"]
+              if i["stock"] > 0 and i["days_of_cover"] is not None and i["days_of_cover"] <= 14]
     out = []
     if urgent:
         rev = sum(i["revenue"] for i in urgent)
@@ -367,6 +370,24 @@ def data_trust(session: Session, w: Window) -> list[dict]:
     return out
 
 
+def completeness(session: Session, w: Window) -> float | None:
+    """Orders in the current window ÷ orders in the previous one. A sharp drop
+    usually means the latest days are not fully loaded yet (partial export),
+    not that the business collapsed."""
+    from sqlalchemy import text
+
+    cur, prev = session.execute(text("""
+        SELECT SUM(CASE WHEN order_date BETWEEN :start AND :end THEN 1 ELSE 0 END),
+               SUM(CASE WHEN order_date BETWEEN :prev_start AND :prev_end THEN 1 ELSE 0 END)
+        FROM public.orders WHERE order_date BETWEEN :prev_start AND :end
+    """), w.params).one()
+    return (cur or 0) / prev if prev else None
+
+
+#: Below this share of the previous window's volume, the window is treated as partial.
+PARTIAL_BELOW = 0.5
+
+
 SIGNALS: list[Callable[[Session, Window], list[dict]]] = [
     revenue_pace, category_momentum, discount_efficiency, seller_outliers, transit_backlog,
     stockout_risk, return_hotspots, churn_risk, data_trust,
@@ -389,8 +410,29 @@ def _brief_all(session: Session, days: int) -> dict:
                                    title=f"Signal '{fn.__name__}' could not be computed",
                                    evidence=[f"{type(e).__name__}: {str(e)[:160]}"],
                                    next_step="Check the API logs.", link="/data", magnitude=0.0))
+    ratio = completeness(session, w)
+    partial = ratio is not None and ratio < PARTIAL_BELOW
+    if partial:
+        # Don't raise business alarms on an incomplete period: demote them and say why.
+        for sig in signals:
+            if sig["domain"] in ("revenue", "category", "customers"):
+                sig["severity"] = "info"
+                sig["title"] = f"Partial data · {sig['title']}"
+                sig["evidence"] = ["Compare with caution: the current window looks incomplete"] + sig["evidence"]
+        signals.append(_signal(
+            id="partial-window", domain="data", kpi="Completeness", severity="act",
+            title=f"The last {w.days} days hold only {ratio * 100:.0f}% of the previous period's orders",
+            metric=ratio, baseline=1.0, unit=None,
+            evidence=["A drop this sharp usually means the latest days are not fully loaded "
+                      "(a partial export or a late feed), not a collapse in demand",
+                      f"Books currently run to {w.as_of.isoformat()}"],
+            next_step="Check that the last import covers whole days for every channel; revenue "
+                      "signals are marked partial until it does.",
+            link="/data#import", magnitude=1.0 - ratio,
+        ))
     signals.sort(key=lambda s: (SEVERITY_RANK[s["severity"]], -float(s["magnitude"] or 0)))
-    return {"generated_at": generated_at, "window": w.as_dict(), "signals": signals, "empty": False}
+    return {"generated_at": generated_at, "window": w.as_dict(), "signals": signals, "empty": False,
+            "completeness": ratio, "partial": partial}
 
 
 def brief(session: Session, days: int = 30, role: str | None = None) -> dict:

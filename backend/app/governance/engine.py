@@ -20,6 +20,13 @@ from backend.app.governance.contracts import MIN_DATE, RULE_ORDER, books_contrac
 
 os.environ.setdefault("GX_ANALYTICS_ENABLED", "False")
 
+#: Derived contract columns → the CSV column a user should fix.
+RAW_COLUMN = {
+    "status_norm": "delivery_status", "final_price_deviation": "final_price",
+    "days_from_min": "purchase_date", "days_to_today": "purchase_date",
+    "purchase_date_parsed": "purchase_date",
+}
+
 
 def _gx():
     import great_expectations as gx
@@ -109,7 +116,7 @@ def validate_import(df: pd.DataFrame, today: datetime.date) -> dict:
             continue
         cfg = r.expectation_config
         rule, why, column = cfg.meta["rule"], cfg.meta["why"], cfg.kwargs.get("column")
-        raw_col = column.removesuffix("_num") if column else None
+        raw_col = RAW_COLUMN.get(column, column.removesuffix("_num")) if column else None
         for item in (r.result or {}).get("unexpected_index_list") or []:
             line = int(item["line_no"])
             if rule == "R1 type" and raw_col in by_line.columns and pd.isna(by_line.at[line, raw_col]):

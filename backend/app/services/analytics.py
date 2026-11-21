@@ -214,7 +214,7 @@ def churn_risk(session: Session, as_of, limit: int = 20) -> dict:
     segments.sort(key=lambda r: order.index(r["segment"]))
     return {
         "as_of": as_of.isoformat(),
-        "rule": "repeat customers: at risk when days since last order > 2 × their own average gap "
+        "rule": "Repeat customers: at risk when days since last order > 2 × their own average gap "
                 "(gap floored at 7 days); cooling when > 1 ×",
         "segments": [{"segment": r["segment"], "customers": r["customers"], "revenue": _f(r["revenue"]),
                       "revenue_share": _f(r["revenue"]) / total_rev} for r in segments],
@@ -284,7 +284,8 @@ def stock_cover(session: Session, as_of, limit: int = 50, velocity_days: int = 3
         JOIN public.products p ON p.product_id = l.product_id
         LEFT JOIN sold s ON s.product_id = l.product_id
         WHERE l.stock < :crit
-        ORDER BY CASE WHEN COALESCE(s.units, 0) > 0 THEN l.stock::numeric / (s.units::numeric / :vdays) END
+        ORDER BY (l.stock = 0),
+                 CASE WHEN COALESCE(s.units, 0) > 0 THEN l.stock::numeric / (s.units::numeric / :vdays) END
                  ASC NULLS LAST, s.revenue DESC NULLS LAST, l.stock ASC
         LIMIT :limit
     """, params)
@@ -395,13 +396,29 @@ def seller_scorecard(session: Session, window: Window | None = None, limit: int 
         "return_p50": _pct(sorted(s["return_rate"] for s in eligible), 0.5),
         "return_p90": _pct(sorted(s["return_rate"] for s in eligible), 0.9),
     }
+    # Pooled peer rates: the baseline for a significance test, so a seller with
+    # 6 orders and 100% late is not flagged on noise alone.
+    pooled_delayed = (sum(s["delayed_rate"] * s["completed"] for s in eligible)
+                      / max(sum(s["completed"] for s in eligible), 1))
+    pooled_return = (sum(s["return_rate"] * s["orders"] for s in eligible)
+                     / max(sum(s["orders"] for s in eligible), 1))
+    peers.update({"delayed_pooled": pooled_delayed, "return_pooled": pooled_return, "z_min": 2.0})
+
+    def z(rate: float, base: float, n: int) -> float:
+        se = math.sqrt(base * (1 - base) / n) if n and 0 < base < 1 else 0.0
+        return (rate - base) / se if se else 0.0
+
     total = sum(s["revenue"] for s in sellers) or 1.0
     for s in sellers:
         s["revenue_share"] = s["revenue"] / total
         s["eligible"] = s["orders"] >= floor
+        s["delayed_z"] = round(z(s["delayed_rate"], pooled_delayed, s["completed"]), 2)
+        s["return_z"] = round(z(s["return_rate"], pooled_return, s["orders"]), 2)
         s["flags"] = [f for f, cond in (
-            ("late_deliveries", s["eligible"] and s["delayed_rate"] > peers["delayed_p90"]),
-            ("returns", s["eligible"] and s["return_rate"] > peers["return_p90"]),
+            ("late_deliveries", s["eligible"] and s["delayed_rate"] > peers["delayed_p90"]
+             and s["delayed_z"] >= 2.0),
+            ("returns", s["eligible"] and s["return_rate"] > peers["return_p90"]
+             and s["return_z"] >= 2.0),
         ) if cond]
     sellers.sort(key=lambda s: s["revenue"], reverse=True)
     return {"sellers_total": len(sellers), "peers": peers, "sellers": sellers[:limit]}

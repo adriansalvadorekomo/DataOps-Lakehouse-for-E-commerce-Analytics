@@ -9,6 +9,21 @@ export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        // Long-lived vendor chunks: app deploys don't invalidate them.
+        codeSplitting: {
+          groups: [
+            { name: "react", test: /node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/ },
+            { name: "motion", test: /node_modules[\\/](gsap|@gsap)[\\/]/ },
+            { name: "ui", test: /node_modules[\\/](@radix-ui|cmdk|sonner|@floating-ui)[\\/]/ },
+            { name: "charts", test: /node_modules[\\/](recharts|d3-|victory-vendor|decimal\.js)/ },
+          ],
+        },
+      },
+    },
+  },
   server: {
     // Dev: same-origin /api, no CORS needed (backend also ships CORS for
     // separate deploys — see backend/app/main.py).

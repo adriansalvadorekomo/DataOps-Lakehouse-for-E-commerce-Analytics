@@ -1,10 +1,25 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="graphite">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Smart-ERP · Marketplace</title>
+    <title>Smart-ERP · Marketplace Control Tower</title>
+    <meta
+      name="description"
+      content="The morning brief for a multi-seller marketplace: what changed, why, and what to do — computed live from the books, with a Great Expectations data contract behind every number."
+    />
+    <meta name="theme-color" content="#0a0a0b" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script>
+      // Apply the saved theme before first paint (no flash of the wrong theme).
+      try {
+        var t = localStorage.getItem("smart-erp-theme");
+        if (t === "paper" || t === "graphite") document.documentElement.dataset.theme = t;
+        else if (window.matchMedia("(prefers-color-scheme: light)").matches)
+          document.documentElement.dataset.theme = "paper";
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

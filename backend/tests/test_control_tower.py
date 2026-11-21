@@ -115,3 +115,16 @@ def test_freshness_reports_as_of_and_forecast(client):
     f = client.get("/meta/freshness").json()
     assert f["as_of"] == datetime.date.today().isoformat()
     assert f["forecast"] == "missing" and f["orders"] >= 1
+
+
+def test_partial_window_demotes_revenue_alarms(client):
+    today = datetime.date.today()
+    for d in range(31, 41):  # ten orders in the previous window…
+        _order(client, date=today - datetime.timedelta(days=d))
+    _order(client)  # …and one in the current window: looks like a partial load
+    body = client.get("/insights/brief", params={"days": 30}).json()
+    assert body["partial"] is True and body["completeness"] < 0.5
+    ids = {s["id"]: s for s in body["signals"]}
+    assert ids["partial-window"]["severity"] == "act"
+    assert ids["revenue-pace"]["severity"] == "info"
+    assert ids["revenue-pace"]["title"].startswith("Partial data")
