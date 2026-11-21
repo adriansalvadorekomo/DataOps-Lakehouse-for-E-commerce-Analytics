@@ -35,7 +35,7 @@ for i in $(seq 1 30); do
   sleep 1
 done
 
-PSQL="psql -h $SOCKDIR -p $PORT -U postgres -v ON_ERROR_STOP=1"
+PSQL="psql -h $SOCKDIR -p $PORT -U postgres -d postgres -v ON_ERROR_STOP=1"
 $PSQL -tc "SELECT 1 FROM pg_roles WHERE rolname='magrey'" | grep -q 1 \
   || $PSQL -c "CREATE ROLE magrey SUPERUSER LOGIN;" >/dev/null
 $PSQL -tc "SELECT 1 FROM pg_database WHERE datname='smart'" | grep -q 1 \

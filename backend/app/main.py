@@ -5,8 +5,6 @@ Contract: docs/business-model.md §3–§4.
 """
 from __future__ import annotations
 
-from __future__ import annotations
-
 import os
 
 from fastapi import FastAPI
@@ -17,6 +15,7 @@ from backend.app.api.assistant import router as assistant_router
 from backend.app.api.documents import router as documents_router
 from backend.app.api.orders import router as orders_router
 from backend.app.api.stats import router as stats_router
+from backend.app.api.trust import router as trust_router
 from backend.app.core.db import get_session_factory
 
 app = FastAPI(title="Smart-ERP", version="0.1.0")
@@ -37,6 +36,7 @@ app.include_router(orders_router)
 app.include_router(stats_router)
 app.include_router(assistant_router)
 app.include_router(documents_router)
+app.include_router(trust_router)
 
 
 @app.get("/health")
