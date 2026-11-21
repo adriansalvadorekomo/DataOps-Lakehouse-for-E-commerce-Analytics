@@ -339,7 +339,7 @@ def data_trust(session: Session, w: Window) -> list[dict]:
         out.append(_signal(
             id="governance-none", domain="data", kpi="Governance", severity="info",
             title="The data contract has not been validated yet",
-            evidence=["Great Expectations validates the books contract (R1–R8) on demand and after "
+            evidence=["Great Expectations validates the books contract (R1–R7 + H1) on demand and after "
                       "every import"],
             next_step="Run a governance check from the Data page.", link="/data#governance",
             magnitude=0.1,

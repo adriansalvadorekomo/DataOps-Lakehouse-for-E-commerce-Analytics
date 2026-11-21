@@ -101,7 +101,7 @@ export function Fulfillment() {
                   <Bar dataKey="past_promise" name="Past promise" fill="var(--signal)" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-              <p className="mt-2 text-[12.5px] text-ink-3">{int(a.stale_over_30d)} orders have been "in transit" for more than 30 days: a data-hygiene issue (rule R8), not a delivery delay.</p>
+              <p className="mt-2 text-[12.5px] text-ink-3">{int(a.stale_over_30d)} orders have been "in transit" for more than 30 days: a data-hygiene issue (hygiene rule H1), not a delivery delay.</p>
             </div>
           ) : <Skeleton className="h-[220px]" />}
         </ChartFrame>

@@ -277,7 +277,7 @@ export function Today() {
               </div>
             </dl>
             <p className="mt-3 border-t border-line pt-3 text-[12.5px] text-ink-3">
-              A Great Expectations contract checks the books (rules R1–R8) on demand and after every import.
+              A Great Expectations contract checks the books (rules R1–R7 + H1) on demand and after every import.
             </p>
             <Link to="/data" className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-signal-ink link-underline">
               See the evidence <ArrowRight className="size-3.5" />

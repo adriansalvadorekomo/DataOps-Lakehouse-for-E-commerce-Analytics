@@ -65,7 +65,7 @@ export function DataHub() {
         ) : <Skeleton className="h-[160px]" />}
       </section>
 
-      <SectionTitle id="governance" title="Data contract" note="Great Expectations validates the books against business-model rules R1–R8: keys, uniqueness, foreign keys, the money invariant, allowed values, ranges, dates and lifecycle hygiene." />
+      <SectionTitle id="governance" title="Data contract" note="Great Expectations validates the books against business-model rules R1–R7 + H1: keys, uniqueness, foreign keys, the money invariant, allowed values, ranges, dates and lifecycle hygiene." />
       <div className="mb-10"><Governance /></div>
 
       <SectionTitle id="glossary" title="KPI glossary" note="Every number in this product links back to one of these definitions (docs/business-model.md)." />

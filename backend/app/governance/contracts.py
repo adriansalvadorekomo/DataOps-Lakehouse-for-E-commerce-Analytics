@@ -1,6 +1,6 @@
 """Data contracts as code — Great Expectations suites (docs/product.md § Data governance).
 
-Two contracts, one rule vocabulary (business-model R1–R7, plus R8 hygiene):
+Two contracts, one rule vocabulary (business-model R1–R7, plus hygiene rule H1):
 
 * ``IMPORT_CONTRACT`` gates every uploaded CSV row before it can reach the
   books (services/imports.py). Its row-level failures become the rejection
@@ -172,7 +172,7 @@ def books_contract(today: datetime.date) -> dict[str, dict]:
         "stale_in_transit": {
             "query": "SELECT order_id FROM public.orders WHERE delivery_status = 'IN TRANSIT' "
                      "AND (SELECT MAX(order_date) FROM public.orders) - order_date > 30",
-            "expectations": [E("ExpectTableRowCountToEqual", "R8 lifecycle hygiene",
+            "expectations": [E("ExpectTableRowCountToEqual", "H1 lifecycle hygiene",
                                "No order stays 'in transit' for more than 30 days (promise is 1–6)",
                                severity="warning", value=0)],
         },

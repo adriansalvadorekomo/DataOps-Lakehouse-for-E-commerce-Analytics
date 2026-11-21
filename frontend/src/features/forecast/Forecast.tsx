@@ -61,7 +61,7 @@ export function Forecast() {
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="date" tickFormatter={(d) => date(d).slice(0, 6)} tickLine={false} axisLine={false} minTickGap={36} />
                   <YAxis tickFormatter={(n) => inr(n, { digits: 0 })} tickLine={false} axisLine={false} width={72} />
-                  {q.data?.asof && <ReferenceLine x={q.data.asof} stroke="var(--line-strong)" label={{ value: "as of", fill: "var(--ink-3)", fontSize: 11, position: "top" }} />}
+                  {q.data?.asof && <ReferenceLine x={q.data.asof} stroke="var(--line-strong)" label={{ value: "as of", fill: "var(--ink-3)", fontSize: 11, position: "insideTopLeft" }} />}
                   <Tooltip content={<ChartTooltip format={(n) => inr(n)} labelFormat={(l) => date(l)} />} />
                   <Line dataKey="actual" name="Actual" stroke="var(--ink)" strokeWidth={1.8} dot={false} />
                   <Line dataKey="rf" name="Random Forest" stroke="var(--violet)" strokeWidth={2.2} dot={false} />
