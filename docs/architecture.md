@@ -6,6 +6,37 @@ Smart-ERP is two systems with a clear boundary between them: an OLTP platform th
 
 > **Diagrams:** [System data flow](diagrams/data-flow.html) · [Medallion lakehouse](diagrams/medallion.html) · [OLTP schema](diagrams/db-schema.html) · [Order lifecycle](diagrams/order-lifecycle.html)
 
+## C4 diagrams
+
+The architecture is drawn with the [C4 model](https://c4model.com): **Level 1** shows the system, the people who use it and the external systems it depends on. **Level 2** opens the system into its containers, meaning the separately running or separately stored parts. Both come in a light and a dark version; GitHub picks the one that matches your theme.
+
+### Level 1 — System context
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/c4/c4-context-dark.png">
+  <img src="diagrams/c4/c4-context-light.png" width="100%" alt="C4 Level 1: marketplace operator, business stakeholder and data analyst use the Smart-ERP DataOps Platform; a data engineer ships changes through GitHub; the platform depends on the e-commerce CSV dataset, Databricks AI services (Genie, Foundation Model API) and Hugging Face Hub (embedding model).">
+</picture>
+
+### Level 2 — Containers
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/c4/c4-container-dark.png">
+  <img src="diagrams/c4/c4-container-light.png" width="100%" alt="C4 Level 2: operational plane (React console, FastAPI backend, forecast job, PostgreSQL 16), analytical plane on Databricks (landing volume, Bronze, Silver, DQ gate R1-R9, Gold, Workflows job, AI/BI dashboards, MLflow, Genie, Foundation Model API), delivery plane (GitHub repo, CI, CD, Terraform, mise + uv).">
+</picture>
+
+**How to read Level 2.** Cards with a coloured top bar are containers, cylinders are data stores, grey cards are external systems, and dashed rounded boxes are boundaries (where a group of containers runs). The three planes are:
+
+| Plane | Runs on | Contains |
+|---|---|---|
+| Operational (blue) | Docker Compose, 3 containers (or `mise run dev` locally) | React console → FastAPI → PostgreSQL 16; forecast job writes `revenue_forecasts` |
+| Analytical (orange) | Databricks Free Edition, Unity Catalog `workspace.*` | Landing volume → Bronze → Silver → DQ gate → Gold, run as one Workflows job; Gold feeds AI/BI dashboards, Genie and the MLflow notebook |
+| Delivery (violet) | GitHub | PR → CI (10 jobs) → `v*` tag → CD (images, compose smoke, deploy job + validate Gold); Terraform provisions the workspace assets |
+
+**One source, two paths.** The 1M-row CSV seeds PostgreSQL (`mise run seed`, 8 acceptance checks) and is uploaded to the landing volume (`mise run dbx-upload`), from which Bronze loads with `COPY INTO`. The designed production path is a JDBC snapshot from PostgreSQL into Bronze ([ADR-2](decisions.md)). Free Edition cannot reach a private database, so the diagram draws the path that actually runs.
+
+**Regenerate.** The diagrams are code: `python docs/diagrams/c4/build_c4.py` rewrites the SVGs and renders 2× PNGs with headless Chromium (`--svg-only` skips the browser). Fonts (Inter, JetBrains Mono, OFL) and logos ([Simple Icons](https://simpleicons.org), CC0) are vendored in `docs/diagrams/c4/assets/`, so the build needs no network. If a number in the diagram changes in the code (tests, CI jobs, revenue), change it in `build_c4.py` and re-run.
+
+
 ## The problem this architecture solves
 
 Running analytics directly on a transactional database is a common trap. As query complexity grows — revenue by city, seller performance trends, return-rate forecasts — the OLTP database slows down, the analytics queries start locking rows, and the application team and analytics team are both fighting for the same resource.
@@ -27,8 +58,8 @@ This project demonstrates that separation at working scale: 1M orders, ₹9.94B 
 │ What happens here: orders are created, status transitions,              │
 │ stock decrements. All constraints enforced by DB CHECK + FK guards.     │
 └─────────────────────────────────────────────────────────────────────────┘
-                                     │ JDBC snapshot (off-peak)
                                      │ one-way: data flows out, never in
+                                     │ (designed: JDBC snapshot · Free Edition: same CSV via a UC volume)
                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ ANALYTICAL PLATFORM (Databricks)                                        │
@@ -41,8 +72,8 @@ This project demonstrates that separation at working scale: 1M orders, ₹9.94B 
 ```
 
 The boundary is enforced in both directions:
-- The application (FastAPI) reads only PostgreSQL for all CRUD operations. It never queries the lakehouse.
-- The lakehouse reads PostgreSQL as a source but never writes back to it. It is a consumer, not a participant.
+- The application (FastAPI) uses only PostgreSQL for all CRUD operations. Its only contact with Gold is read-only, through Databricks Genie (`/ai/ask-genie`).
+- The lakehouse never writes back to PostgreSQL. It is a consumer, not a participant: in the designed path it reads a JDBC snapshot, and on Free Edition it loads the same source CSV.
 
 This keeps PostgreSQL's constraints intact (the `delivery_status` lifecycle, the `final_price` invariant, the FK graph) while giving the analytical layer the freedom to transform data without endangering the transaction store.
 
@@ -65,7 +96,7 @@ This keeps PostgreSQL's constraints intact (the `delivery_status` lifecycle, the
 | `orders` | 1 per order | 1,000,000 |
 | `order_items` | 1 per order line | 1,000,000 |
 
-The database enforces the business rules that must not be violated: `final_price = unit_price × quantity × (1 − discount/100)` (CHECK constraint, ±₹0.01), the `delivery_status` lifecycle (IN TRANSIT → DELIVERED/DELAYED/RETURNED, terminal states immutable), and referential integrity across all six tables.
+The database enforces the business rules that must not be violated: `final_price = unit_price × quantity × (1 − discount/100)` (CHECK constraint, ±₹5.00, because the source CSV round-trips up to ~₹3.99 from higher precision; see [business-model.md §6](business-model.md)), the `delivery_status` lifecycle (IN TRANSIT → DELIVERED/DELAYED/RETURNED, terminal states immutable), and referential integrity across all six tables.
 
 Two additional tables were added incrementally:
 - `revenue_forecasts` — stores RF + Prophet model outputs (30-day projections, refreshed by `mise run forecast`)
@@ -154,7 +185,7 @@ A new order is created via `POST /orders`. FastAPI validates the payload (produc
 
 **Step 2 — Snapshot (Bronze)**
 
-At the next ingestion run, `scripts/seed/ingest.py` (local) or the `bronze_ingest` Databricks notebook reads `staging.purchases` via JDBC. The watermark (`max(purchase_date)`) ensures only new rows are appended. Each row gets `_ingest_ts` and `_source` audit columns. Bronze is append-only — no row is ever deleted or updated.
+The `bronze_ingest` task (notebook `01_bronze_backfill.py`) loads the source CSV from the Unity Catalog landing volume with `COPY INTO`. `COPY INTO` tracks the files it has already ingested, so a re-run appends 0 rows. The designed production path reads `staging.purchases` from PostgreSQL over JDBC with a `max(purchase_date)` watermark (`lakehouse/src/bronze/ingest.py`). Free Edition cannot reach a private database, so it uses the CSV path. Each row gets `_ingest_ts` and `_source` audit columns. Bronze is append-only — no row is ever deleted or updated.
 
 **Step 3 — Cleanse (Silver)**
 
