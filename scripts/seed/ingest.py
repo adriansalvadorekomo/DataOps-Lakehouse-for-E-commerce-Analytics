@@ -122,6 +122,8 @@ def normalize() -> None:
     # ── Clear (FK-safe: children before parents) ──────────────────────────
     # Deletes MUST run children-first or Postgres raises FK violations on re-run.
     run_psql([], "DELETE FROM public.order_items;")
+    run_psql([], "DELETE FROM public.import_rejections;")
+    run_psql([], "DELETE FROM public.import_batches;")
     run_psql([], "DELETE FROM public.orders;")
     run_psql([], "DELETE FROM public.inventory;")
     run_psql([], "DELETE FROM public.products;")
@@ -210,10 +212,14 @@ def normalize() -> None:
         """
         INSERT INTO public.orders
           (order_id, customer_id, order_date, ship_to_city, payment_method, device,
-           delivery_status, shipping_time_days)
+           delivery_status, shipping_time_days, source_hash)
         SELECT
           row_idx, user_id, purchase_date, location, payment_method, device,
-          delivery_status, shipping_time_days
+          delivery_status, shipping_time_days,
+          -- Row fingerprint; MUST match backend/app/services/imports.py fingerprint()
+          md5(concat_ws('|', user_id, product_id, seller_id, to_char(purchase_date, 'YYYY-MM-DD'),
+                        price::text, discount::text, final_price::text, location,
+                        payment_method, device, shipping_time_days::text, delivery_status))
         FROM staging.purchases
         ORDER BY row_idx;
         """,
@@ -231,6 +237,18 @@ def normalize() -> None:
           discount, final_price, seller_rating
         FROM staging.purchases
         ORDER BY row_idx;
+        """,
+    )
+
+    # Explicit ids above do not advance the identity sequences; move them past
+    # the seeded ids so POST /orders and CSV imports never collide with them.
+    run_psql(
+        [],
+        """
+        SELECT setval(pg_get_serial_sequence('public.orders', 'order_id'),
+                      GREATEST((SELECT COALESCE(MAX(order_id), 0) FROM public.orders), 1));
+        SELECT setval(pg_get_serial_sequence('public.order_items', 'order_item_id'),
+                      GREATEST((SELECT COALESCE(MAX(order_item_id), 0) FROM public.order_items), 1));
         """,
     )
 

@@ -1,11 +1,16 @@
-"""Read-only stats router — dashboard aggregates (business-model §5)."""
+"""Read-only stats router — KPI aggregates (business-model §4, K1–K12).
+
+Endpoints taking ``days`` measure the window ending at the latest order date
+(services/period.py); omit it for all-time numbers.
+"""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db
-from backend.app.services import stats
+from backend.app.services import analytics, stats
+from backend.app.services.period import resolve_window
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -96,3 +101,85 @@ def get_forecast(
     from backend.app.services.forecast import read_forecast
 
     return read_forecast(session, trailing=trailing)
+
+
+Days = Query(default=None, ge=7, le=730, description="Window length ending at the latest order date")
+
+
+def _window(session: Session, days: int | None):
+    return resolve_window(session, days) if days else None
+
+
+def _empty_guard(session: Session):
+    w = resolve_window(session, 30)
+    if w is None:
+        raise HTTPException(status_code=404, detail="No orders yet: load the seed or import a CSV")
+    return w
+
+
+@router.get("/revenue-monthly")
+def get_revenue_monthly(months: int = Query(default=24, ge=3, le=60),
+                        session: Session = Depends(get_db)):
+    return analytics.revenue_monthly(session, months=months)
+
+
+@router.get("/daily-revenue")
+def get_daily_revenue(days: int = Query(default=30, ge=7, le=365), session: Session = Depends(get_db)):
+    w = resolve_window(session, days)
+    return {"window": w.as_dict() if w else None,
+            "days": analytics.daily_revenue(session, w) if w else []}
+
+
+@router.get("/category-comparison")
+def get_category_comparison(days: int = Query(default=30, ge=7, le=365),
+                            session: Session = Depends(get_db)):
+    w = resolve_window(session, days)
+    return {"window": w.as_dict() if w else None,
+            "categories": analytics.category_comparison(session, w) if w else []}
+
+
+@router.get("/margin")
+def get_margin(days: int | None = Days, session: Session = Depends(get_db)):
+    return analytics.margin(session, _window(session, days))
+
+
+@router.get("/pareto-curve")
+def get_pareto_curve(session: Session = Depends(get_db)):
+    return analytics.pareto_curve(session)
+
+
+@router.get("/churn-risk")
+def get_churn_risk(limit: int = Query(default=20, ge=1, le=100), session: Session = Depends(get_db)):
+    return analytics.churn_risk(session, _empty_guard(session).as_of, limit=limit)
+
+
+@router.get("/return-hotspots")
+def get_return_hotspots(days: int | None = Days, limit: int = Query(default=12, ge=1, le=100),
+                        session: Session = Depends(get_db)):
+    return analytics.return_hotspots(session, _window(session, days), limit=limit)
+
+
+@router.get("/stock-cover")
+def get_stock_cover(limit: int = Query(default=50, ge=1, le=500), session: Session = Depends(get_db)):
+    return analytics.stock_cover(session, _empty_guard(session).as_of, limit=limit)
+
+
+@router.get("/fulfillment-funnel")
+def get_fulfillment_funnel(days: int | None = Days, session: Session = Depends(get_db)):
+    return analytics.fulfillment_funnel(session, _window(session, days))
+
+
+@router.get("/in-transit-ageing")
+def get_in_transit_ageing(session: Session = Depends(get_db)):
+    return analytics.in_transit_ageing(session, _empty_guard(session).as_of)
+
+
+@router.get("/seller-scorecard")
+def get_seller_scorecard(days: int | None = Days, limit: int = Query(default=200, ge=1, le=2000),
+                         session: Session = Depends(get_db)):
+    return analytics.seller_scorecard(session, _window(session, days), limit=limit)
+
+
+@router.get("/city-scorecard")
+def get_city_scorecard(days: int | None = Days, session: Session = Depends(get_db)):
+    return analytics.city_scorecard(session, _window(session, days))

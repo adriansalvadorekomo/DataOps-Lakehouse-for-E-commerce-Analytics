@@ -63,6 +63,10 @@ run = ["python3 scripts/seed/ingest.py", "python3 scripts/seed/acceptance.py"]
 description = "Retrain RF + Prophet and replace revenue_forecasts"
 run = "uv run python -m backend.app.jobs.refresh_forecast"
 
+[tasks.governance]
+description = "Validate the books contract with Great Expectations and record the run (exit 1 on critical failure)"
+run = "uv run python -m backend.app.governance --trigger cli"
+
 [tasks.test-backend]
 description = "Backend pytest on throwaway Postgres (needs PG* env)"
 run = "uv run pytest backend/tests scripts/cd/test_cd.py -q"

@@ -10,6 +10,7 @@ dependencies = [
     # torch rides the CPU index below — PyPI's default wheel drags ~2GB of
     # CUDA that no target here (CI, slim image, laptop) can use.
     "fastapi>=0.141.1",
+    "great-expectations>=1.5",
     "pandas>=3.0.5",
     "prophet>=1.4.0",
     "psycopg[binary]>=3.0",

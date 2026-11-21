@@ -1,4 +1,4 @@
-"""OLTP models — mirror of database/migrations/002 (+005 audit_log).
+"""OLTP models — mirror of database/migrations/002 (+005 audit_log, 008 imports).
 
 Source of truth for values: docs/business-model.md §2–§3.
 Any schema change here MUST ship with an Alembic revision AND the equivalent
@@ -133,6 +133,8 @@ class Order(Base):
     device: Mapped[str] = mapped_column(Text, nullable=False)
     delivery_status: Mapped[str] = mapped_column(Text, nullable=False)
     shipping_time_days: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    #: md5 of the canonical source row (seed + CSV imports); see services/imports.py.
+    source_hash: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -292,4 +294,80 @@ class DocumentChunk(Base):
         CheckConstraint("chunk_index >= 0", name="chunks_index_nonneg"),
         UniqueConstraint("document_id", "chunk_index", name="uq_chunk_doc_idx"),
         Index("idx_chunks_document", "document_id"),
+    )
+
+
+class ImportBatch(Base):
+    """One uploaded CSV (008_imports.sql): what came in, what was kept, and why not."""
+
+    __tablename__ = "import_batches"
+
+    batch_id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    filename: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'processing'"))
+    rows_total: Mapped[int] = mapped_column(nullable=False, server_default=text("0"))
+    rows_accepted: Mapped[int] = mapped_column(nullable=False, server_default=text("0"))
+    rows_duplicate: Mapped[int] = mapped_column(nullable=False, server_default=text("0"))
+    rows_rejected: Mapped[int] = mapped_column(nullable=False, server_default=text("0"))
+    rejections_by_rule: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
+    first_order_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
+    last_order_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
+    revenue_added: Mapped[float] = mapped_column(Numeric(16, 2), nullable=False, server_default=text("0"))
+    #: Great Expectations import-contract summary (governance/contracts.py).
+    governance: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    finished_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('processing', 'completed', 'failed')", name="import_batches_status_enum"
+        ),
+    )
+
+
+class ImportRejection(Base):
+    __tablename__ = "import_rejections"
+
+    rejection_id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    batch_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("import_batches.batch_id", ondelete="CASCADE"), nullable=False
+    )
+    line_no: Mapped[int] = mapped_column(nullable=False)
+    rule: Mapped[str] = mapped_column(Text, nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    raw: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+
+class GovernanceRun(Base):
+    """One validation of the books contract with Great Expectations (009_governance.sql)."""
+
+    __tablename__ = "governance_runs"
+
+    run_id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    trigger: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'running'"))
+    evaluated: Mapped[int] = mapped_column(nullable=False, server_default=text("0"))
+    successful: Mapped[int] = mapped_column(nullable=False, server_default=text("0"))
+    critical_failures: Mapped[int] = mapped_column(nullable=False, server_default=text("0"))
+    warnings: Mapped[int] = mapped_column(nullable=False, server_default=text("0"))
+    results: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    finished_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('running', 'passed', 'warning', 'failed', 'error')",
+            name="governance_runs_status_enum",
+        ),
+        CheckConstraint(
+            "trigger IN ('api', 'cli', 'import', 'ci')", name="governance_runs_trigger_enum"
+        ),
     )

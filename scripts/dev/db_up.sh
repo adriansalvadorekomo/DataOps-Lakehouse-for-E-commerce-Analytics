@@ -47,4 +47,13 @@ if ! $PSQL -d smart -tc "SELECT to_regclass('public.orders')" | grep -q orders; 
   PGHOST="$SOCKDIR" PGPORT="$PORT" PGUSER=magrey PGDATABASE=smart \
     sh "$(dirname "$0")/../../database/apply.sh" >/dev/null
 fi
+# Incremental migrations added after the first apply (idempotent SQL).
+if ! $PSQL -d smart -tc "SELECT to_regclass('public.import_batches')" | grep -q import_batches; then
+  echo "→ applying 008_imports.sql"
+  $PSQL -d smart -q -f "$(dirname "$0")/../../database/migrations/008_imports.sql" >/dev/null
+fi
+if ! $PSQL -d smart -tc "SELECT to_regclass('public.governance_runs')" | grep -q governance_runs; then
+  echo "→ applying 009_governance.sql"
+  $PSQL -d smart -q -f "$(dirname "$0")/../../database/migrations/009_governance.sql" >/dev/null
+fi
 echo "✓ postgres ready ($SOCKDIR:$PORT, db smart)"

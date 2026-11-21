@@ -307,8 +307,9 @@ def seller_performance(session: Session, limit: int = 50) -> list[dict]:
                 / func.nullif(completed, 0)
             ).label("delayed_rate"),
             (
+                # Same denominator as city_performance: distinct orders (K3).
                 func.sum(case((Order.delivery_status == "RETURNED", 1), else_=0))
-                / func.nullif(func.count(OrderItem.order_item_id), 0)
+                / func.nullif(func.count(func.distinct(Order.order_id)), 0)
             ).label("return_rate"),
         )
         .join(Order, Order.order_id == OrderItem.order_id)
