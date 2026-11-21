@@ -1,6 +1,6 @@
 name: CI
 
-# Trunk-Based Development gate (see docs/branching-strategy.md §5).
+# Trunk-Based Development gate (see docs/operations.md §5).
 # Runs against every pull request into main and every push to main.
 on:
   pull_request:
@@ -189,4 +189,4 @@ jobs:
           grep -q 'lakehouse' README.md
           # Full 1M-row seed acceptance needs the git-ignored CSV, so it runs
           # locally (scripts/seed/README.md), not here; the lakehouse DQ rules
-          # R1–R9 mirror its checks so the contract cannot drift (docs/lakehouse.md §7).
+          # R1–R9 mirror its checks so the contract cannot drift (docs/architecture.md, "Data governance").

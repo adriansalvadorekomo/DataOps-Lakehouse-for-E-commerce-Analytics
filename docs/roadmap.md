@@ -1,30 +1,47 @@
 # Roadmap
 
-The project was built as a sequence of phases, from understanding the business problem to a deployed analytical platform. Each phase delivers one concrete, validated layer of the system. This table used to live in the README; it moved here so the README can stay short.
+Where the project stands and where it goes next. Each item states the **objective** it serves and how success is **measured** — a roadmap item without a measure is a wish.
 
-| Phase | Objective | Key deliverables | Status |
-|---|---|---|---|
-| **1 — Business understanding** | Define the domain: marketplace, INR, sellers, fulfillment lifecycle | [Business model doc](business-model.md), KPI definitions (K1–K12), money flow, data contracts | ✅ Done |
-| **2 — Domain modeling & schema** | Turn the business model into a validated relational schema | 6 core tables, 7 migrations, CHECK constraints, FK graph, invariants enforced in the database | ✅ Done |
-| **3 — Data ingestion** | Load 1M source rows into normalized OLTP tables, behind acceptance gates | `scripts/seed/ingest.py`, `acceptance.py`, 8 acceptance checks, revenue reconciled to ±₹1,000 | ✅ Done |
-| **4 — Application layer** | Expose the OLTP core through a typed, tested HTTP API | FastAPI backend (orders, stats, forecast, assistant, documents), Alembic migrations, 32 API tests (+4 CD contract tests in the same `mise run test-backend` run) | ✅ Done |
-| **5 — Frontend dashboard** | Show platform data to operators and analysts | React + Vite console: Overview, Orders, Sales, Sellers, Operations, Pipeline, Assistant, Documents | ✅ Done |
-| **6 — Data platform** | Land raw data in a durable, replayable analytical store | Databricks Free Edition workspace, Unity Catalog, Bronze Delta table (`raw_purchases`), idempotent `COPY INTO` from the landing volume | ✅ Done |
-| **7 — Data transformation** | Produce clean, validated analytical entities from raw data | Silver (6 entity tables, enum normalization, grouping logic), DQ gate R1–R9 (0 violations at 1M rows) | ✅ Done |
-| **8 — Analytical models** | Build KPI-ready Gold tables for BI, ML and AI | Gold: `fact_sales`, `sales_daily`, `customer_360`, `inventory_kpis` + dims; revenue ₹9.94B reconciled | ✅ Done |
-| **9 — BI & AI consumption** | Put the analytical layer in front of business users | Databricks AI/BI dashboards (revenue, fulfillment), deterministic assistant (`/ai/ask`), document Q&A (`/ai/ask-docs`), Genie (`/ai/ask-genie`) | 🟡 In progress |
-| **10 — CI/CD & deployment** | Make every change safe, tested and deliverable | GitHub Actions CI (10 jobs) + CD (3 jobs), GHCR images, compose smoke, Databricks job deploy + Gold validation | ✅ Done |
-| **11 — Infrastructure as code** | Provision and version workspace assets declaratively | Terraform: schemas, volumes, job definition; `deploy_job.py` for stateless job updates | ✅ Done |
-| **12 — ML & forecasting** | Add forward-looking signals on top of the analytical layer | RF + Prophet 30-day revenue forecast (MAPE 3.4–4.0%), `revenue_forecasts` table, `/stats/forecast` endpoint | 🟡 In progress |
-| **13 — Observability & operations** | Make the running system visible and recoverable | Health endpoint, `mise run dataops` loop, troubleshooting docs | 🟡 In progress |
-| **14 — Future scaling** | Design the path from one server to high availability | System design proposal: load balancer + stateless backend replicas + pgBouncer + PostgreSQL read replica | 🔵 Draft |
+## Done
 
-## What "in progress" means
+| Capability | Objective | Evidence |
+|---|---|---|
+| Business model and KPI catalogue | One contract for every number | [business-model.md](business-model.md): K1–K12, rules R1–R9 + H1, analyst findings |
+| PostgreSQL system of record | Correct writes, enforced lifecycle and money invariant | 9 migrations; CHECK and FK constraints; audit log |
+| Seed with acceptance gate | Reproducible 1M-row load | 8 acceptance checks; revenue reconciled to ±₹1,000 |
+| Databricks medallion with fail-fast gate | Gold only from data that passes R1–R9 | 0 violations at 1M rows; Gold revenue ₹9,938,876,985 |
+| CI/CD and infrastructure as code | Every change tested; releases deploy and validate themselves | 10 CI jobs per PR; CD deploys the job, runs it and validates Gold; Terraform for schemas, volumes, job |
+| Revenue forecast | Know what to expect next | Random Forest 3.4% MAPE (rolling one-day-ahead, 90 days) |
+| **Marketplace Control Tower** | Each role knows what to do today | Ranked brief of live signals across revenue, pricing, sellers, fulfillment, inventory, returns, customers and data trust; 9 role pages; entity profiles; ⌘K |
+| **New data path** | Bring in data without a full reload | CSV import: validated, idempotent, rejection report; measured on 1M books |
+| **Data contracts (Great Expectations)** | Report only numbers that pass the contract | Import contract (46 expectations) + books contract (29), stored runs, auto-run after imports |
 
-**Phase 9.** The assistant and the document upload/chunking/embedding path are implemented. `/ai/ask-docs` retrieves chunks locally (all-MiniLM-L6-v2, cosine) and asks the Databricks Foundation Model API to answer only from them. `rag/` holds no separate production embedding pipeline yet. `/ai/ask-genie` needs a Genie space configured in the workspace (`GENIE_SPACE_ID`). Without it, the endpoint answers 409 with setup instructions.
+## Now
 
-**Phase 12.** Revenue forecasting (RF ships, Prophet is a second opinion) is deployed and served at `/stats/forecast`. Return propensity (`lakehouse/notebooks/05_train_return_propensity.py`, tracked in MLflow) and churn risk exist as notebooks and are not yet served.
+| Item | Objective | Done when |
+|---|---|---|
+| Schedule the forecast refresh | The outlook never trails the books | Retrain runs after each import or nightly; brief shows no "forecast stale" signal in steady state |
+| Close never-finished shipments (H1) | Late-delivery rate built on complete data | H1 warning cleared, or a documented rule closes statuses older than 30 days |
+| Genie space configured | Plain-language questions over Gold | `/ai/ask-genie` answers with SQL + rows in the live workspace |
 
-**Phase 13.** The system runs through `mise run` tasks and documented troubleshooting. Structured metrics (Prometheus/Grafana), alerting and SLOs are not implemented yet.
+## Next
 
-**Bronze ingestion path.** The designed production path is a JDBC snapshot from PostgreSQL ([ADR-2](decisions.md)). Free Edition cannot reach a private database, so the running job loads the same CSV from a Unity Catalog volume with `COPY INTO`. See [databricks-free-edition.md](databricks-free-edition.md).
+| Item | Objective | Measure |
+|---|---|---|
+| Incremental lakehouse (`MERGE`) | Scale past ~10M rows | Silver/Gold runtime grows with new rows, not total rows |
+| Change-data capture into Bronze | Lakehouse reflects imports within minutes | Bronze lag < 15 min (replaces the CSV/volume seam) |
+| Alerting on the brief | "Act now" reaches people without opening the app | New *act* signals posted to e-mail/Slack with a link |
+| Real cost of goods | Replace the 65% margin assumption | `products.unit_cost` populated; K10 no longer labelled *estimated* |
+| Observability | See the system, not just the data | Request latency, brief compute time and contract results as metrics with SLOs |
+
+## Later
+
+| Item | Objective | Note |
+|---|---|---|
+| Authentication and roles | Each role sees its own brief by default | The role filter already exists; tie it to identity |
+| Horizontal scaling | Availability beyond one server | Load balancer, stateless API replicas, pgBouncer, a read replica for the brief |
+| Return-propensity model | Predict returns | Only with richer data: no feature in the current source predicts returns (business-model §7, finding 6) |
+
+## History
+
+The project was built in phases: business model → schema → ingestion → API → console → data platform → transformation → Gold → BI/AI → CI/CD → IaC → forecasting → the Control Tower and data contracts. Git history and the merged pull requests hold the detail.

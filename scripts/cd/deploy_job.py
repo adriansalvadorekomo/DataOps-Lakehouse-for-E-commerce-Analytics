@@ -115,7 +115,7 @@ def main() -> int:
                 if (j.get("settings") or {}).get("name") == JOB_NAME), None)
     if job is None:
         print(f"ERROR: job {JOB_NAME!r} missing — provision it once via "
-              "infra/terraform (see docs/databricks-free-edition.md)", file=sys.stderr)
+              "infra/terraform (see docs/operations.md)", file=sys.stderr)
         return 1
     live_settings = api("GET", f"/api/2.1/jobs/get?job_id={job['job_id']}").get("settings", {})
     settings = build_settings(live_settings, contract, os.environ["WAREHOUSE_ID"])

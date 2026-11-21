@@ -1,66 +1,79 @@
 <h1 align="center">DataOps Lakehouse for E-commerce Analytics</h1>
 
 <p align="center">
-  PostgreSQL system of record → Databricks Bronze / Silver / Gold, with a fail-fast data-quality gate before Gold,<br>
-  Terraform-managed workspace assets and PR-gated CI/CD. 1M orders of a multi-seller marketplace (India, INR ₹).
+  <b>A marketplace control tower</b>: a ranked morning brief of what changed, why, and what to do —<br>
+  computed live from PostgreSQL, guarded by Great Expectations data contracts, backed by a Databricks medallion lakehouse.<br>
+  1M orders of a multi-seller marketplace (India, INR ₹).
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Databricks-FF3621?style=flat&logo=databricks&logoColor=white" alt="Databricks" />
-  <img src="https://img.shields.io/badge/Delta_Lake-00ADD8?style=flat&logo=delta&logoColor=white" alt="Delta Lake" />
   <img src="https://img.shields.io/badge/Spark_SQL-E25A1C?style=flat&logo=apachespark&logoColor=white" alt="Spark SQL" />
+  <img src="https://img.shields.io/badge/Great_Expectations-1.x-2BB673?style=flat" alt="Great Expectations" />
   <img src="https://img.shields.io/badge/PostgreSQL_16-4169E1?style=flat&logo=postgresql&logoColor=white" alt="PostgreSQL 16" />
   <img src="https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB" alt="React" />
+  <img src="https://img.shields.io/badge/React_19-20232A?style=flat&logo=react&logoColor=61DAFB" alt="React" />
   <img src="https://img.shields.io/badge/Terraform-7B42BC?style=flat&logo=terraform&logoColor=white" alt="Terraform" />
-  <img src="https://img.shields.io/badge/Python-3.12-3776AB?style=flat&logo=python&logoColor=white" alt="Python 3.12" />
   <a href="https://github.com/adriansalvadorekomo/DataOps-Lakehouse-for-E-commerce-Analytics/actions/workflows/ci.yml"><img src="https://github.com/adriansalvadorekomo/DataOps-Lakehouse-for-E-commerce-Analytics/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
 </p>
+
+<p align="center">
+  <img src="docs/screenshots/today-dark.png" width="100%" alt="The Today brief: '2 things need you today' in dot-matrix numerals; ranked signal cards (recent shipments past their promise, repeat customers gone quiet, then watch items such as return hotspots and never-closed shipments), each with evidence, a next step and a link; a pace panel and a 'Can I trust these numbers?' panel.">
+</p>
+
+---
+
+## What it is for
+
+A marketplace team does not need more dashboards; it needs to know **what to do today** and **whether the number telling it so can be trusted**.
+
+| You are… | You ask… | The product answers with… |
+|---|---|---|
+| Marketplace operator | What needs me today? | A ranked brief: each signal with its evidence, a next step and a link |
+| Commercial lead | Are we on pace? What do discounts cost? | Revenue vs the previous window, category momentum, estimated margin by discount band |
+| Seller manager | Who hurts delivery or returns? | Seller flags against peers, only when statistically significant |
+| Fulfillment / inventory | What is stuck? What runs out first? | Shipments past their promise; a reorder list ranked by days of cover |
+| CRM / data science | Who is drifting away? | Customers quiet for more than twice their own usual gap, by lifetime value |
+| Data owner | Can I report on this? | Great Expectations contracts on every import and on the books |
+
+**When new data arrives**, drop a marketplace export (CSV) on the *Data & governance* page: every row is checked by the import contract, valid rows are appended idempotently, rejected rows come back with the rule they broke, the books contract re-runs, and every window, KPI and signal moves forward on the next load. If the newest days look incomplete, the brief says *partial data* instead of reporting a collapse. → [docs/product.md](docs/product.md)
+
+<p align="center">
+  <img src="docs/screenshots/data-governance-dark.png" width="49%" alt="Data & governance: CSV import with the Great Expectations import contract, import history, and the books contract with every expectation, rule and severity.">
+  <img src="docs/screenshots/revenue-light.png" width="49%" alt="Revenue (light theme): KPI tiles with deltas, daily revenue against the previous window, monthly revenue, category momentum and estimated margin by discount band.">
+</p>
+
+## How it works
 
 <p align="center">
   <a href="docs/diagrams/c4/c4-container-dark.svg">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/c4/c4-container-dark.png">
-      <img src="docs/diagrams/c4/c4-container-light.png" width="100%" alt="C4 Level 2 container diagram. Operational plane on Docker Compose: React web console, FastAPI backend, revenue forecast job, PostgreSQL 16 system of record. Analytical plane on Databricks Free Edition: landing volume, Bronze, Silver, DQ gate R1–R9 and Gold Delta tables orchestrated by Databricks Workflows, feeding AI/BI dashboards, Genie and an MLflow notebook; the API calls the Foundation Model API and Genie. Delivery plane: GitHub repo, Actions CI (10 jobs), CD (3 jobs), Terraform, mise + uv. One CSV seeds PostgreSQL and lands in Bronze.">
+      <img src="docs/diagrams/c4/c4-container-light.png" width="100%" alt="C4 Level 2 container diagram. Operational plane: Control Tower web app, FastAPI, forecast job, Great Expectations data contracts and PostgreSQL 16, with marketplace exports entering through POST /imports. Analytical plane on Databricks: landing volume, Bronze, Silver, DQ gate R1–R9 and Gold, run by Databricks Workflows, feeding AI/BI dashboards, Genie and MLflow. Delivery plane: GitHub, CI (10 jobs), CD, Terraform, mise + uv.">
     </picture>
   </a>
-  <br><sub>C4 Level 2: containers. Click for the full-resolution SVG · <a href="docs/diagrams/c4/c4-context-light.png">Level 1: system context</a> · <a href="docs/architecture.md#c4-diagrams">how to read it</a></sub>
+  <br><sub>C4 Level 2 — click for the full-resolution SVG · <a href="docs/diagrams/c4/c4-context-light.png">Level 1: system context</a> · <a href="docs/architecture.md">architecture</a></sub>
 </p>
 
----
-
-## In 30 seconds
-
-**Problem.** E-commerce reports that query the operational database directly give no guarantee that the numbers are right, and they compete with the application for the same database.
-
-**Design.** Two planes, one boundary:
-
-```
-                    ┌─► PostgreSQL 16 ◄── FastAPI ◄── React console          (operational: every write)
- 1M-row CSV source ─┤
-                    └─► UC volume ─► Bronze ─► Silver ─► DQ gate R1–R9 ─► Gold ─► AI/BI · Genie · MLflow
-                                     └──── Databricks Workflows job: one serverless run, fail-fast ────┘
-```
-
-- **PostgreSQL owns every write.** CHECK and FK constraints enforce the money invariant and the delivery lifecycle.
-- **Databricks owns analytics and never writes back.** Bronze is append-only, and Silver rebuilds from Bronze.
-- **Gold builds only on a green gate.** If any of the 9 rules fails, the job stops and the last good Gold stays.
-- **Every change goes through a PR.** 10 CI jobs run without secrets; a `v*` tag deploys the job, runs it and validates Gold.
+- **PostgreSQL owns every write** and serves the live brief (cached on a data version, so any write invalidates it).
+- **Great Expectations** gates every imported row (46 expectations) and validates the books in place (29), using the same rule IDs as the lakehouse gate.
+- **Databricks owns analytics** and never writes back: Bronze (append-only) → Silver → **fail-fast DQ gate R1–R9** → Gold, one Workflows job.
+- **Every change goes through a PR**: 10 CI jobs without secrets; a `v*` tag deploys the job, runs it and validates Gold.
 
 ## Results
 
 Measured on the full dataset (1,000,000 synthetic orders, 24 months):
 
-| What | Result |
+| | |
 |---|---|
-| DQ gate R1–R9 on Silver | **0 violations** |
-| Gold revenue vs. source | **₹9,938,876,985**, reconciled within ±₹1,000 |
-| Row counts | 603,815 customers · 9,000 sellers · 89,999 products · 1,000,000 orders |
-| Tests | 32 API (pytest) · 4 CD contract · 27 lakehouse (stdlib `unittest`, no cluster) |
-| CI | 10 jobs on every pull request; CD: build images → compose smoke → deploy + run + validate Gold |
-| Forecast | 30-day revenue, Random Forest: 3.4% MAPE on a rolling one-day-ahead test (Prophet as second opinion) |
+| Lakehouse DQ gate (R1–R9) | **0 violations**; Gold revenue **₹9,938,876,985**, reconciled within ±₹1,000 |
+| Books contract (Great Expectations) | **28/29** expectations met; the 1 warning is real — ≈ 281,000 orders never closed "in transit" (H1) |
+| Import, end to end on the 1M books | 505-row export: 300 added, 200 recognised as known, 5 rejected with their rule — validated in 0.8 s |
+| The brief | ~8 s cold, ~150 ms warm at 1M orders |
+| Forecast | Random Forest, 3.4% MAPE (rolling one-day-ahead, 90 days); Prophet 4.0% as second opinion |
+| Tests | 53 API · 4 CD · 27 lakehouse (no cluster) · 5 web; 10 CI jobs on every PR |
 
-**Known limits** (written down in [8 ADRs](docs/decisions.md)): the medallion is a full refresh today, so beyond ~10M rows it needs `MERGE`. Bronze is designed as a JDBC snapshot from PostgreSQL, but on Free Edition it loads the same CSV from a Unity Catalog volume. Margin uses an *estimated* cost (`0.65 × unit_price`) because the source has no COGS.
+**What the data says** (analyst notes in [business-model.md §7](docs/business-model.md#7-what-the-data-says-analyst-notes)): revenue is flat at ₹379–428M a month (an earlier "30× growth" claim compared a one-day month with a full one); 39% of order lines carry 30–50% discounts and, under the 65% cost assumption, sell below cost past 35% off; repeat customers (45%) bring 67% of revenue; and no recorded attribute predicts returns — so the project ships a hotspot test, not a model with nothing to learn.
 
 ## Quick start
 
@@ -71,40 +84,40 @@ git clone https://github.com/adriansalvadorekomo/DataOps-Lakehouse-for-E-commerc
 cd DataOps-Lakehouse-for-E-commerce-Analytics
 uv sync && npm ci --prefix frontend
 
-mise run dev      # Postgres → API :8000 → console :5173
-mise run seed     # optional: load the 1M-row CSV (git-ignored) + 8 acceptance checks
-mise run help     # every task: tests, forecast, dbx-*, tf-*
+mise run dev          # PostgreSQL → API :8000 (/docs) → Control Tower :5173
+mise run seed         # load the 1M-row CSV (git-ignored) + acceptance checks
+mise run governance   # Great Expectations run of the books contract
+mise run forecast     # publish the 30-day outlook
 ```
 
-The lakehouse logic runs without a cluster: `python -m unittest discover -s lakehouse/tests` and `python lakehouse/local_run.py`. Databricks tasks need `DATABRICKS_HOST` + `DATABRICKS_TOKEN` in `.env` (see [operations](docs/operations.md)).
+The lakehouse logic runs without a cluster: `python -m unittest discover -s lakehouse/tests` and `python lakehouse/local_run.py`. Databricks tasks need `DATABRICKS_HOST` + `DATABRICKS_TOKEN` in `.env` ([operations](docs/operations.md)).
+
+## Documentation
+
+| Read | For |
+|---|---|
+| [Business model](docs/business-model.md) | The contract: data, lifecycle, money flow, KPIs K1–K12, rules — and what the data actually says |
+| [Product](docs/product.md) | Who uses the Control Tower, the signals and their rules, what happens when data arrives, governance |
+| [Architecture](docs/architecture.md) | C4 diagrams, the two planes, data governance, the medallion |
+| [Decisions](docs/decisions.md) | Ten ADRs, each with when to revisit it |
+| [Roadmap](docs/roadmap.md) | Done / now / next / later, each with a measure |
+| [Operations](docs/operations.md) | Setup, tasks, tests, CI/CD, Databricks, troubleshooting |
 
 ## Repository map
 
 | Path | What lives there |
 |---|---|
-| [`lakehouse/`](lakehouse/) | Bronze / Silver / Gold modules, DQ rules R1–R9, notebooks 01–05, Gold SQL, the Workflows job JSON, cluster-free tests |
-| [`database/`](database/) | PostgreSQL DDL: 7 migrations, invariants, `apply.sh` |
-| [`scripts/`](scripts/) | `seed/` (CSV → PostgreSQL + acceptance), `cd/` (deploy job, validate Gold), `dev/` |
-| [`backend/`](backend/) | FastAPI: `/orders`, `/stats`, `/ai`, `/documents`; Alembic; pytest |
-| [`frontend/`](frontend/) | React 19 + Vite console, served by nginx in Docker |
-| [`infra/`](infra/) | Terraform (schemas, volumes, job) and the 3-container Docker Compose stack |
-| [`bi/`](bi/), [`ml/`](ml/), [`notebooks/`](notebooks/) | AI/BI dashboard exports, forecasting scripts, EDA notebooks |
-| [`.github/workflows/`](.github/workflows/) | `ci.yml` (10 jobs), `cd.yml` (3 jobs), `release.yml` |
-
-## Documentation
-
-| Read this | To understand |
-|---|---|
-| [Architecture](docs/architecture.md) | The C4 diagrams, the two planes, data flow, constraints |
-| [Data engineering](docs/data-engineering.md) · [Lakehouse](docs/lakehouse.md) | Bronze, Silver, the DQ gate and Gold, table by table |
-| [Business model](docs/business-model.md) | The domain contract: schemas, KPIs, money flow (single source of truth) |
-| [Decisions](docs/decisions.md) | Why Databricks and not dbt + Airflow, why medallion, and what is limited |
-| [Operations](docs/operations.md) · [Development](docs/development.md) | Every `mise` task, CI/CD, troubleshooting, local setup, testing |
-| [Roadmap](docs/roadmap.md) | The 14 phases and what is still in progress |
-| [Diagrams](docs/diagrams/) | Order lifecycle, medallion, data flow, DB schema, system design |
+| [`frontend/`](frontend/) | The Control Tower: React 19, Vite, Tailwind v4, Radix, GSAP |
+| [`backend/`](backend/) | FastAPI: brief (`services/insights.py`), KPIs, entities, imports, governance (`governance/`), orders, AI |
+| [`database/`](database/) | PostgreSQL DDL: 9 migrations, invariants |
+| [`lakehouse/`](lakehouse/) | Bronze / Silver / Gold, DQ rules R1–R9, notebooks, Gold SQL, the Workflows job, cluster-free tests |
+| [`scripts/`](scripts/) | Seed + acceptance, CD scripts, dev helpers |
+| [`infra/`](infra/) | Terraform (schemas, volumes, job), Docker Compose |
+| [`bi/`](bi/), [`ml/`](ml/), [`notebooks/`](notebooks/) | AI/BI dashboard exports, forecasting, EDA |
 
 ---
 
 <p align="center">
+  <a href="https://adriansalvadorekomodev.vercel.app"><img src="frontend/public/brand/mark.svg" width="28" alt="Brand mark: a cloud lit on a dot-matrix display"></a><br>
   <sub><a href="https://github.com/adriansalvadorekomo"><b>Adrián Salvador Ekomo</b></a> · data engineering + DevOps · <a href="https://www.linkedin.com/in/adriansalvadorekomo">LinkedIn</a> · <a href="https://adriansalvadorekomodev.vercel.app/blog/fail-fast-dq-gate-lakehouse">Write-up: put the quality gate between Silver and Gold</a></sub>
 </p>

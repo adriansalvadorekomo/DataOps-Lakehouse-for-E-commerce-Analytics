@@ -4,7 +4,7 @@
 # Contract: lakehouse/src/silver/transform.py. All enum normalization and
 # business grouping (mode city, latest snapshots) happens HERE and nowhere
 # else. Sample scale: full rebuild (CREATE OR REPLACE) — acceptable and
-# documented; production uses watermarked MERGE (docs/lakehouse.md §4).
+# documented; production uses watermarked MERGE (docs/architecture.md, "Analytical plane").
 # Widget: catalog.
 
 # COMMAND ----------

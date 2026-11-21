@@ -1,4 +1,7 @@
-# Phase 3 — Seed / Ingestion
+# Seed / ingestion (full refresh)
+
+> Incremental loads use the CSV import instead (validated by the Great Expectations import contract, idempotent via `orders.source_hash`): see [`docs/product.md` §4](../../docs/product.md#4-when-new-data-arrives). The seed writes the same fingerprint, so re-importing seeded rows adds nothing.
+
 
 Loads the raw e-commerce dataset into PostgreSQL and validates it. Written for
 developers who are new to the project — you can follow this end-to-end and the

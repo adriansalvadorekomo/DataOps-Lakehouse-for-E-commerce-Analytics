@@ -1,6 +1,6 @@
 {
   "name": "smart-erp-medallion",
-  "description": "PostgreSQL OLTP → Bronze → Silver → (DQ gate) → Gold → SQL refresh. Source of task order: docs/lakehouse.md §5. Secrets via Databricks secret scopes / env — never in this file.",
+  "description": "CSV (UC volume; designed: PostgreSQL snapshot) → Bronze → Silver → (DQ gate) → Gold → SQL refresh. Source of task order: docs/architecture.md (Analytical plane). Secrets via Databricks secret scopes / env — never in this file.",
   "timeout_seconds": 3600,
   "max_concurrent_runs": 1,
   "tasks": [

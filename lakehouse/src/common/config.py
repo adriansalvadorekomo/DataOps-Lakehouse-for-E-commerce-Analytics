@@ -1,7 +1,7 @@
 """Shared configuration for the Smart-ERP lakehouse.
 
 All environment-specific values (workspace URL, catalog names, credentials)
-come from environment variables — never hardcoded. See docs/lakehouse.md.
+come from environment variables — never hardcoded. See docs/architecture.md.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ class LakehouseConfig:
     # Unity Catalog is NOT available on Databricks Community Edition (Hive
     # Metastore only). Set LAKEHOUSE_USE_UC=false there and table() degrades
     # to the two-level hive name (schema.table). See
-    # docs/databricks-community-edition.md.
+    # docs/operations.md (Databricks Free Edition).
     use_uc: bool = field(
         default_factory=lambda: os.environ.get("LAKEHOUSE_USE_UC", "true").lower() not in ("0", "false", "no")
     )

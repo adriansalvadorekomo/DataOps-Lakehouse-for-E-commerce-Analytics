@@ -1,10 +1,8 @@
 # Architecture
 
-Smart-ERP is two systems with a clear boundary between them: an OLTP platform that processes transactions, and an analytical platform that answers business questions about those transactions. This document explains what each system does, why they are separated, and how they fit together.
+Two planes with one boundary. **PostgreSQL owns every write** and serves the live product; **Databricks owns analytics** and never writes back. A shared rule vocabulary (R1–R9, H1) is enforced at three points: the import gate, the books contract and the lakehouse gate. This page explains each part and why it is there; the reasoning behind each choice is in [decisions.md](decisions.md).
 
 ---
-
-> **Diagrams:** [System data flow](diagrams/data-flow.html) · [Medallion lakehouse](diagrams/medallion.html) · [OLTP schema](diagrams/db-schema.html) · [Order lifecycle](diagrams/order-lifecycle.html)
 
 ## C4 diagrams
 
@@ -24,230 +22,111 @@ The architecture is drawn with the [C4 model](https://c4model.com): **Level 1** 
   <img src="diagrams/c4/c4-container-light.png" width="100%" alt="C4 Level 2: operational plane (React console, FastAPI backend, forecast job, PostgreSQL 16), analytical plane on Databricks (landing volume, Bronze, Silver, DQ gate R1-R9, Gold, Workflows job, AI/BI dashboards, MLflow, Genie, Foundation Model API), delivery plane (GitHub repo, CI, CD, Terraform, mise + uv).">
 </picture>
 
-**How to read Level 2.** Cards with a coloured top bar are containers, cylinders are data stores, grey cards are external systems, and dashed rounded boxes are boundaries (where a group of containers runs). The three planes are:
+**How to read Level 2.** Cards with a coloured top bar are containers (the green one is a library inside the API), cylinders are data stores, grey cards are external systems, and dashed rounded boxes are boundaries (where a group of containers runs). The three planes:
 
 | Plane | Runs on | Contains |
 |---|---|---|
-| Operational (blue) | Docker Compose, 3 containers (or `mise run dev` locally) | React console → FastAPI → PostgreSQL 16; forecast job writes `revenue_forecasts` |
-| Analytical (orange) | Databricks Free Edition, Unity Catalog `workspace.*` | Landing volume → Bronze → Silver → DQ gate → Gold, run as one Workflows job; Gold feeds AI/BI dashboards, Genie and the MLflow notebook |
+| Operational (blue) | Docker Compose, 3 containers (or `mise run dev` locally) | Control Tower → FastAPI → PostgreSQL; Great Expectations contracts inside the API gate imports and validate the books; the forecast job writes `revenue_forecasts` |
+| Analytical (orange) | Databricks Free Edition, Unity Catalog `workspace.*` | Landing volume → Bronze → Silver → DQ gate → Gold, run as one Workflows job; Gold feeds AI/BI dashboards, Genie and MLflow |
 | Delivery (violet) | GitHub | PR → CI (10 jobs) → `v*` tag → CD (images, compose smoke, deploy job + validate Gold); Terraform provisions the workspace assets |
 
-**One source, two paths.** The 1M-row CSV seeds PostgreSQL (`mise run seed`, 8 acceptance checks) and is uploaded to the landing volume (`mise run dbx-upload`), from which Bronze loads with `COPY INTO`. The designed production path is a JDBC snapshot from PostgreSQL into Bronze ([ADR-2](decisions.md)). Free Edition cannot reach a private database, so the diagram draws the path that actually runs.
+**Data in.** The 1M-row CSV seeds PostgreSQL (`mise run seed`, 8 acceptance checks) and is uploaded to the landing volume (`mise run dbx-upload`), from which Bronze loads with `COPY INTO`. New marketplace exports enter through the API (`POST /imports`), gated row by row by the Great Expectations import contract. The designed production path is a JDBC snapshot from PostgreSQL into Bronze ([ADR-2](decisions.md)). Free Edition cannot reach a private database, so the diagram draws the path that actually runs.
 
 **Regenerate.** The diagrams are code: `python docs/diagrams/c4/build_c4.py` rewrites the SVGs and renders 2× PNGs with headless Chromium (`--svg-only` skips the browser). Fonts (Inter, JetBrains Mono, OFL) and logos ([Simple Icons](https://simpleicons.org), CC0) are vendored in `docs/diagrams/c4/assets/`, so the build needs no network. If a number in the diagram changes in the code (tests, CI jobs, revenue), change it in `build_c4.py` and re-run.
 
-
-## The problem this architecture solves
-
-Running analytics directly on a transactional database is a common trap. As query complexity grows — revenue by city, seller performance trends, return-rate forecasts — the OLTP database slows down, the analytics queries start locking rows, and the application team and analytics team are both fighting for the same resource.
-
-The alternative is to build a clean separation: the transactional system does what it does well (atomic writes, constraint enforcement, lifecycle management), and the analytical system does what *it* does well (aggregations, transformations, historical analysis, machine learning).
-
-This project demonstrates that separation at working scale: 1M orders, ₹9.94B revenue, a fully validated lakehouse, and a CI/CD pipeline that keeps both sides green.
-
 ---
 
-## System boundaries
+## The boundary
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│ APPLICATION LAYER                                                       │
-│                                                                         │
-│ React dashboard ──► FastAPI backend ──► PostgreSQL (OLTP)               │
-│                                                                         │
-│ What happens here: orders are created, status transitions,              │
-│ stock decrements. All constraints enforced by DB CHECK + FK guards.     │
-└─────────────────────────────────────────────────────────────────────────┘
-                                     │ one-way: data flows out, never in
-                                     │ (designed: JDBC snapshot · Free Edition: same CSV via a UC volume)
-                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│ ANALYTICAL PLATFORM (Databricks)                                        │
-│                                                                         │
-│ Bronze ──► Silver ──► DQ gate ──► Gold ──► BI / ML / AI                 │
-│                                                                         │
-│ What happens here: raw data is preserved, cleaned, validated,           │
-│ shaped into KPI-ready models — no OLTP writes happen here.              │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-The boundary is enforced in both directions:
-- The application (FastAPI) uses only PostgreSQL for all CRUD operations. Its only contact with Gold is read-only, through Databricks Genie (`/ai/ask-genie`).
-- The lakehouse never writes back to PostgreSQL. It is a consumer, not a participant: in the designed path it reads a JDBC snapshot, and on Free Edition it loads the same source CSV.
-
-This keeps PostgreSQL's constraints intact (the `delivery_status` lifecycle, the `final_price` invariant, the FK graph) while giving the analytical layer the freedom to transform data without endangering the transaction store.
-
----
-
-## Components
-
-### PostgreSQL — the transaction system
-
-**What it owns:** every write that matters to the business. An order is created. A delivery status transitions. Stock decrements when an order item is placed.
-
-**Six core tables:**
-
-| Table | Grain | Rows |
+| | Operational plane | Analytical plane |
 |---|---|---|
-| `customers` | 1 per buyer | 603,815 |
-| `sellers` | 1 per independent seller | 9,000 |
-| `products` | 1 per catalog item | 89,999 |
-| `inventory` | 1 per product per date (snapshots) | varies |
-| `orders` | 1 per order | 1,000,000 |
-| `order_items` | 1 per order line | 1,000,000 |
+| Runs on | Docker Compose (3 containers) or `mise run dev` | Databricks Free Edition, Unity Catalog `workspace.*` |
+| Owns | Every write: orders, status transitions, stock, imports | History, cleaning, KPI marts, BI, ML experiments |
+| Serves | The Control Tower (live, cached on a data version) | AI/BI dashboards, Genie, MLflow |
+| Quality | Great Expectations: import contract + books contract | Spark DQ gate R1–R9, fail-fast before Gold |
+| Never | Queries the lakehouse for CRUD | Writes to PostgreSQL |
 
-The database enforces the business rules that must not be violated: `final_price = unit_price × quantity × (1 − discount/100)` (CHECK constraint, ±₹5.00, because the source CSV round-trips up to ~₹3.99 from higher precision; see [business-model.md §6](business-model.md)), the `delivery_status` lifecycle (IN TRANSIT → DELIVERED/DELAYED/RETURNED, terminal states immutable), and referential integrity across all six tables.
+The application's only read of Gold goes through Databricks Genie (`/ai/ask-genie`), read-only.
 
-Two additional tables were added incrementally:
-- `revenue_forecasts` — stores RF + Prophet model outputs (30-day projections, refreshed by `mise run forecast`)
-- `documents` — metadata for user-uploaded documents (used by the RAG assistant)
+---
 
-Migrations live in `database/migrations/001–007.sql` and are applied idempotently by `database/apply.sh`.
+## Operational plane
 
-### FastAPI backend — the application API
+**PostgreSQL 16 — the books.** Six core tables (customers, sellers, products, inventory, orders, order_items; see [business-model.md §2](business-model.md#2-the-data)) plus `audit_log`, `revenue_forecasts`, `documents`/`document_chunks`, `import_batches`/`import_rejections` and `governance_runs`. Nine SQL migrations in `database/migrations/` (replayed by Alembic for the API). The database itself enforces the money invariant (CHECK, ±₹5.00), the lifecycle values, ranges and the foreign-key graph.
 
-**What it owns:** the HTTP surface the frontend and external consumers talk to.
+**FastAPI — the API** (`backend/app`).
 
-Four routers:
-
-| Router | Prefix | Purpose |
+| Area | Module | Notes |
 |---|---|---|
-| Orders | `/orders` | Create orders, list/filter, transition status |
-| Stats | `/stats` | Read-only aggregates: overview, trends, sellers, stock |
-| Assistant | `/ai` | Grounded Q&A over governed data (no LLM, deterministic) |
-| Documents | `/documents` | Upload, list, retrieve business documents for RAG |
+| The brief | `services/insights.py` | Signal functions over a window anchored on the latest order date (`services/period.py`); data-derived thresholds; completeness guard |
+| KPIs | `services/analytics.py`, `services/stats.py` | Raw SQL over indexed columns; heavy reads cached on `(count, max id, max updated_at)` so any write invalidates them; warm-up at start |
+| Entities and search | `services/entities.py` | Seller / product / customer profiles, ⌘K prefix search |
+| Orders | `services/orders.py` | One transaction per create or transition, stock lock, audit row |
+| New data | `services/imports.py` | CSV → Great Expectations gate → idempotent append (`source_hash`) |
+| Governance | `governance/` | Contracts as code, engine, stored runs, CLI |
+| Forecast | `services/forecast.py`, `jobs/refresh_forecast.py` | Random Forest (served) + Prophet (second opinion) |
+| AI | `services/assistant.py`, `rag.py`, `genie.py` | Deterministic intents; document answers via the Databricks FM API; Genie over Gold |
 
-The stats service computes KPIs directly from PostgreSQL — it does not query the lakehouse. This is intentional: the API needs fresh numbers without a lakehouse dependency, and the 1M-row dataset is fast enough on indexed OLTP columns.
+**Web — the Control Tower** (`frontend/`): React 19, Vite, TanStack Query, Radix, GSAP; served by nginx, which proxies `/api` to the API. One page per role question; see [product.md](product.md).
 
-The assistant (`/ai/ask`) answers questions by dispatching to the stats, orders, and forecast services. It never fabricates answers. Unknown questions return the capability list.
+---
 
-### React frontend — the dashboard
+## Data governance
 
-**What it owns:** visualising the platform data for operators and analysts.
+Three enforcement points, one vocabulary:
 
-Pages: Overview (KPI summary), Orders (list + detail + create), Sales (trends by category/city), Sellers (performance), Pipeline (lakehouse status), Assistant (Q&A), Documents (upload/browse).
+| Rule | Meaning | Import contract (GE, per CSV row) | Books contract (GE, PostgreSQL) | Lakehouse gate (Spark, Silver → Gold) |
+|---|---|---|---|---|
+| R1 | Keys and required fields present, typed | ✓ | ✓ | ✓ |
+| R2 | Business keys unique | — (dedup by fingerprint) | ✓ | ✓ |
+| R3 | Foreign keys resolve | upserts parents first | ✓ (orphan query) | ✓ |
+| R4 | `final_price` invariant ±₹5.00 | ✓ | ✓ | ✓ |
+| R5 | Allowed values (status, category, payment, device) | ✓ | ✓ | ✓ |
+| R6 | Ranges (discount 0–70, stock 0–500, ratings 0–5, days 1–6) | ✓ | ✓ | ✓ |
+| R7 | Dates inside the business window | ✓ (not in the future) | ✓ | ✓ |
+| R8 | Full-load revenue = ₹9,938,876,985 ± ₹1,000 | — | — | ✓ |
+| R9 | Source schema complete | ✓ (missing columns fail the file) | — | ✓ |
+| H1 | No order "in transit" > 30 days (warning) | — | ✓ | — |
 
-In development, Vite proxies `/api` requests to the backend at `:8000`. In production (Docker), nginx proxies the same route inside the container — the frontend never hard-codes the backend URL.
+Great Expectations suites are built from `backend/app/governance/contracts.py`; each expectation carries its rule, severity (`critical` / `warning`) and a plain-language reason. Books runs are stored in `governance_runs` and triggered on demand, after every import, by `mise run governance` (exit 1 on critical failure) and in CI.
 
-### Databricks Lakehouse — the analytical platform
+---
 
-**What it owns:** everything that requires transforming and aggregating the full transaction history: revenue trends, DQ validation, KPI marts, ML features, BI dashboards.
+## Analytical plane
 
-Three layers with distinct responsibilities:
+```
+UC volume (CSV) ─COPY INTO─► Bronze ──► Silver ──► DQ gate R1–R9 ──► Gold ──► AI/BI · Genie · MLflow
+                              raw_purchases   6 entity      fail-fast       fact_sales · sales_daily
+                              (append-only,   tables                        customer_360 · inventory_kpis
+                               audit cols)                                  dim_customer/product/date
+                 └──────────── Databricks Workflows: smart-erp-medallion (serverless) ────────────┘
+```
 
-| Layer | Purpose | Tables |
+| Layer | Tables | Contract |
 |---|---|---|
-| Bronze | Immutable raw history. 1:1 with the source snapshot + audit columns (`_ingest_ts`, `_source`). Never modified. | `raw_purchases` |
-| Silver | Cleaned, validated, standardized entities. Enums normalized, grouping logic defined, DQ gate enforced. | 6 entity twins (customers, sellers, products, inventory, orders, order_items) |
-| Gold | Business-ready KPI models. What BI dashboards, the ML pipeline, and the AI assistant read. | `fact_sales`, `sales_daily`, `customer_360`, `inventory_kpis`, `dim_customer`, `dim_product`, `dim_date` |
+| **Bronze** | `bronze.raw_purchases` | Source columns verbatim + `_ingest_ts`, `_source`; append-only; `COPY INTO` tracks files, so a re-run adds 0 rows. Designed production path: JDBC snapshot from PostgreSQL with a `purchase_date` watermark |
+| **Silver** | six entity twins | Typed, trimmed, enums normalised; every business rule defined exactly once (e.g. `home_city`) |
+| **DQ gate** | — | R1–R9 (`lakehouse/src/quality/rules.py`); one violation fails the task, so Gold never builds on bad data and the last good Gold stays |
+| **Gold** | `fact_sales` (one row per line, with `discount_band` and `estimated_line_margin`), `sales_daily`, `customer_360` (lifetime value, Pareto tier), `inventory_kpis` (stock-critical flag), `dim_customer`, `dim_product`, `dim_date` | Built from Silver only (CI `sql-parse` enforces it); revenue reconciled to the source |
 
-The DQ gate sits between Silver and Gold: rules R1–R9 must all pass before Gold builds. If they don't, the job fails and the last known good Gold remains intact.
+The job (`lakehouse/workflows/smart_erp_job.json`) runs `bronze_ingest → silver_build → dq_gate → gold_build → sql_refresh`. Its logic is pure Python under `lakehouse/src/`, tested without a cluster, and `lakehouse/local_run.py` runs the same path on sample data.
 
-### Databricks Workflows — orchestration
-
-**What it owns:** running the medallion pipeline in the right order, with retries and task-level observability.
-
-The job definition lives in `lakehouse/workflows/smart_erp_job.json`. Five tasks:
-
-```
-bronze_ingest → silver_build → dq_gate → gold_build → sql_refresh
-```
-
-Each task is a Databricks notebook (01–04) or a SQL file (`sql_refresh`). The job runs on serverless compute. It is deployed by `scripts/cd/deploy_job.py` (stateless `jobs/reset` from the versioned JSON).
-
-### Terraform — workspace provisioning
-
-**What it owns:** the one-time setup of Databricks workspace assets: the three schemas (`bronze`, `silver`, `gold`), two volumes (`landing` for the CSV, `documents` for RAG files), and the initial job resource.
-
-Terraform is the provisioning path, not the deployment path. The evolving job definition ships via `scripts/cd/deploy_job.py`, not `terraform apply`. This keeps Terraform's state small and avoids CI needing credentials to plan.
-
-### GitHub Actions — CI/CD
-
-**What it owns:** keeping `main` always deployable and delivering releases end-to-end.
-
-Two workflows:
-- `ci.yml` — runs on every PR and push to `main`. 10 jobs. No credentials, no deployment.
-- `cd.yml` — runs on `v*` tags and manual dispatch. 3 jobs: build images → compose smoke → Databricks deploy + medallion run + Gold validation.
-
-The full CI/CD description is in [docs/operations.md](operations.md).
+**KPIs → where they live:** K1–K7 and K10 from `fact_sales`; K8 from `inventory_kpis`; K9 and K11 features from `customer_360`. The live product computes the same definitions on PostgreSQL ([product.md §8](product.md#8-api-map)).
 
 ---
 
-## Data flow
+## Delivery plane
 
-Here is what happens to a single piece of data from the moment it enters the system to the moment it appears in a dashboard.
-
-![Role-scoped data flow — who does what at each pipeline step, from app write to consumer](diagrams/data-flow.png)
-
-**Step 1 — Transaction (PostgreSQL)**
-
-A new order is created via `POST /orders`. FastAPI validates the payload (product exists, seller exists, stock check), writes to `orders` + `order_items` in a single transaction, and returns the created order. PostgreSQL's CHECK constraints verify the `final_price` invariant before the transaction commits.
-
-**Step 2 — Snapshot (Bronze)**
-
-The `bronze_ingest` task (notebook `01_bronze_backfill.py`) loads the source CSV from the Unity Catalog landing volume with `COPY INTO`. `COPY INTO` tracks the files it has already ingested, so a re-run appends 0 rows. The designed production path reads `staging.purchases` from PostgreSQL over JDBC with a `max(purchase_date)` watermark (`lakehouse/src/bronze/ingest.py`). Free Edition cannot reach a private database, so it uses the CSV path. Each row gets `_ingest_ts` and `_source` audit columns. Bronze is append-only — no row is ever deleted or updated.
-
-**Step 3 — Cleanse (Silver)**
-
-The `silver_build` task reads Bronze and applies the transformations defined in `lakehouse/src/silver/transform.py`: enum normalization (`In Transit` → `IN TRANSIT`), whitespace trimming, type coercion, grouping logic (mode city per customer, latest-snapshot price/rating per product). Six entity tables emerge, mirroring the OLTP schema but owned by the analytical platform.
-
-**Step 4 — Validate (DQ gate)**
-
-The `dq_gate` task runs rules R1–R9 from `lakehouse/src/quality/rules.py` against the Silver tables. A single violation causes the task to fail, which prevents `gold_build` from running. Rules cover nulls, uniqueness, FK integrity, the money invariant, enum values, date window, and the full-load revenue checksum (₹9,938,876,985 ± ₹1,000).
-
-**Step 5 — Serve (Gold)**
-
-`gold_build` builds the KPI models from Silver: `fact_sales` (one row per order line, with category, seller, and date dimensions resolved), `sales_daily` (aggregated daily revenue + status split), `customer_360` (lifetime value, order count, Pareto tier), `inventory_kpis` (stock-critical flag per product). `sql_refresh` materializes the serving views via Databricks SQL.
-
-**Step 6 — Consume**
-
-BI dashboards (`bi/`) query Gold directly via the SQL warehouse. The ML pipeline reads `customer_360` and `fact_sales` as feature tables. The `/ai/ask` endpoint reads PostgreSQL in real-time (the stats it needs are fresh, not batched).
+GitHub, trunk-based: pull requests run 10 CI jobs without secrets; a `v*` tag runs CD (images → GHCR → compose smoke → deploy job → run → validate Gold). Terraform (`infra/terraform/`) provisions schemas, volumes and the job. Details: [operations.md §5–6](operations.md#5-branching-ci-and-cd).
 
 ---
 
-## Infrastructure topology
+## Constraints the architecture depends on
 
-```
-Local development                    Production
-
-mise run dev                         v* tag → GitHub Actions CD
-    │                                    │
-    ├── Postgres (embedded pgserver)      ├── GHCR images (backend + frontend)
-    ├── FastAPI :8000                     ├── Docker Compose (smoke gate)
-    └── Vite :5173                        └── Databricks workspace
-                                              ├── smart-erp-medallion job
-                                              ├── Workflows (serverless)
-                                              ├── SQL warehouse (validation)
-                                              └── Unity Catalog (workspace.*)
-```
-
-Local development uses an embedded PostgreSQL (installed by `scripts/dev/db_up.sh`) — no Docker required. The Databricks workspace is always real (Free Edition); there is no local mock.
-
-The Docker Compose stack (`infra/docker-compose.yml`) is used only by the CD smoke test and is not the recommended local development path.
-
-![System design — current 3-container deployment vs future scaling proposal (load balancer, replicas, pgBouncer)](diagrams/system-design-img.png)
-
----
-
-## Key architectural constraints
-
-These are not implementation details — they are rules the architecture depends on.
-
-**PostgreSQL is the only system that accepts OLTP writes.** The application never writes to Delta Lake. The lakehouse never writes to PostgreSQL. Violating this would compromise the CHECK constraints and the FK graph.
-
-**Bronze rows are immutable.** Corrections are new snapshots downstream, not updates to Bronze. This is what makes the pipeline replayable: re-running `silver_build` from Bronze always produces the same output.
-
-**Gold builds only on green DQ.** There is no path to build Gold that bypasses R1–R9. This is enforced by Databricks Workflows task dependencies — `gold_build` depends on `dq_gate`.
-
-**No COGS in the source.** Margin figures are always estimated: `unit_cost = 0.65 × unit_price`. Every column that uses this assumption is prefixed `estimated_`. If real cost data ever arrives, it replaces this constant; the prefix ensures the assumption is visible.
-
-**Secrets never in code or git.** PostgreSQL credentials are env vars (`PG*`). Databricks credentials are env vars (`DATABRICKS_*`) locally and GitHub Environment secrets in CI/CD. The `.env` file is git-ignored.
-
----
-
-## Where to go next
-
-- How the medallion pipeline works in detail: [docs/data-engineering.md](data-engineering.md)
-- How to run and operate the system: [docs/operations.md](operations.md)
-- Why these architectural choices were made: [docs/decisions.md](decisions.md)
-- The domain model and KPI definitions: [docs/business-model.md](business-model.md)
+- **One writer.** Only PostgreSQL accepts writes; nothing writes back from the lakehouse.
+- **Bronze is immutable.** Corrections are new rows downstream; Silver and Gold rebuild from Bronze.
+- **No Gold without a green gate.** `gold_build` depends on `dq_gate` in the job graph.
+- **No report without a contract.** Imports pass the import contract; the books contract runs after each import.
+- **Windows follow the data.** Every "last N days" ends on the latest order date, so new data moves everything forward.
+- **Estimated means estimated.** Margin uses a 65% cost assumption and is labelled as such everywhere.
+- **No secrets in git.** `.env` locally, GitHub environment secrets in CD.

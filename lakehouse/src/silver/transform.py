@@ -1,6 +1,6 @@
 """Silver layer — cleaned, validated, standardized entities.
 
-Contract (see docs/lakehouse.md):
+Contract (see docs/architecture.md):
 - One table per OLTP entity: customers / sellers / products / inventory /
   orders / order_items. Same grains and business keys as
   ``docs/business-model.md`` §2 — Silver never redefines the domain.

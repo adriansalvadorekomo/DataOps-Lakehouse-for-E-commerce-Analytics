@@ -1,6 +1,6 @@
 """Gold layer — business-ready analytical models.
 
-Contract (see docs/lakehouse.md + KPI→Gold matrix in docs/business-model.md):
+Contract (see docs/architecture.md (Analytical plane) + KPIs in docs/business-model.md §5):
 - Gold tables answer the §5 KPIs and nothing else. No speculative marts.
 - All margin figures are **estimated** (est. unit_cost = 0.65 × unit_price).
 - Pure helpers below implement the KPI arithmetic on plain Python iterables
