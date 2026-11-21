@@ -128,6 +128,8 @@ class Canvas:
             self.delta_glyph(x + size / 2, y + size / 2, size * .58, layer)
         elif slug == "csv":
             self.file_glyph(x + size / 2, y + size / 2, size * .62, layer)
+        elif slug == "contract":
+            self.contract_glyph(x + size / 2, y + size / 2, size * .62, layer)
         else:
             pad = size * .2
             self.logo(slug, x + pad, y + pad, size - 2 * pad, layer=layer)
@@ -139,6 +141,19 @@ class Canvas:
         layer.append(f'<path d="M{cx:.1f},{cy - h / 2:.1f} L{cx + s / 2:.1f},{cy + h / 2:.1f} '
                      f'L{cx - s / 2:.1f},{cy + h / 2:.1f} Z" fill="none" stroke="{c}" '
                      f'stroke-width="{s * .16:.1f}" stroke-linejoin="round"/>')
+
+    def contract_glyph(self, cx, cy, s, layer):
+        """Generic data-contract mark (shield + check) for Great Expectations."""
+        c = self.t["ok"]
+        w, h = s * .82, s
+        x, y = cx - w / 2, cy - h / 2
+        layer.append(f'<path d="M{cx:.1f},{y:.1f} L{x + w:.1f},{y + h * .2:.1f} V{y + h * .52:.1f} '
+                     f'Q{x + w:.1f},{y + h * .86:.1f} {cx:.1f},{y + h:.1f} Q{x:.1f},{y + h * .86:.1f} '
+                     f'{x:.1f},{y + h * .52:.1f} V{y + h * .2:.1f} Z" fill="none" stroke="{c}" '
+                     f'stroke-width="1.8" stroke-linejoin="round"/>'
+                     f'<path d="M{cx - w * .22:.1f},{cy + h * .02:.1f} L{cx - w * .04:.1f},{cy + h * .2:.1f} '
+                     f'L{cx + w * .26:.1f},{cy - h * .14:.1f}" fill="none" stroke="{c}" stroke-width="2" '
+                     f'stroke-linecap="round" stroke-linejoin="round"/>')
 
     def file_glyph(self, cx, cy, s, layer):
         c = self.t["ext"]
@@ -310,60 +325,65 @@ STACK = ["databricks", "apachespark", "delta", "postgresql", "fastapi", "react",
 
 # ── Level 2 — container diagram ─────────────────────────────────────────────
 def container(theme: str) -> str:
-    c = Canvas(2400, 1770, theme)
+    c = Canvas(2400, 1930, theme)
     t = c.t
     c.header("C4 MODEL  ·  LEVEL 2  ·  CONTAINER DIAGRAM",
              "Smart-ERP — DataOps Lakehouse for E-commerce Analytics",
-             "Multi-seller marketplace, India, INR ₹.  PostgreSQL records every order; a Databricks "
-             "medallion lakehouse builds Gold only after a fail-fast quality gate.", STACK)
+             "Marketplace, India, INR ₹.  PostgreSQL serves a live control tower; Great Expectations "
+             "contracts gate every import; Databricks builds Gold behind a fail-fast gate.", STACK)
 
-    # people
-    c.person(80, 212, 250, 120, "Marketplace operator", ["Creates orders, moves", "delivery status, watches stock"])
-    c.person(360, 212, 250, 120, "Business stakeholder", ["Reads KPIs, sales and sellers;", "asks the assistant"])
+    # people + the new-data source
+    c.person(70, 212, 230, 120, "Marketplace operator", ["Acts on the brief: orders,", "deliveries, stock"])
+    c.person(320, 212, 230, 120, "Business stakeholder", ["Reads pace, margin, sellers;", "asks the assistant"])
+    c.card(575, 200, 330, 130, t["ext"], "EXTERNAL · NEW DATA", "Marketplace exports",
+           "CSV · the source's 20 columns", ["Uploaded on the Data page"], icons=("csv",), title_size=19)
     c.person(1720, 212, 290, 120, "Data analyst", ["Explores Gold in AI/BI", "dashboards and Genie"])
 
-    # design rules (centre of the people band)
     rules = [("PostgreSQL owns every write", t["ops"]),
              ("Databricks never writes back", t["ana"]),
-             ("Gold builds only on a green DQ gate", t["ok"]),
-             ("One CSV source, two load paths", t["ext"])]
-    c.text(1165, 222, "DESIGN RULES", 11.5, 500, t["faint"], MONO, "middle", 1.4)
-    for i, (s, col) in enumerate(rules):
-        cx = 680 + (i % 2) * 490
+             ("No import without the contract", t["ok"]),
+             ("No Gold without a green gate", t["gold"])]
+    c.text(1300, 222, "DESIGN RULES", 11.5, 500, t["faint"], MONO, "middle", 1.4)
+    for i, (txt, col) in enumerate(rules):
+        cx = 930 + (i % 2) * 380
         cy = 240 + (i // 2) * 50
-        c.front.append(f'<rect x="{cx}" y="{cy}" width="470" height="38" rx="19" fill="{t["card"]}" stroke="{t["border"]}"/>'
+        c.front.append(f'<rect x="{cx}" y="{cy}" width="360" height="38" rx="19" fill="{t["card"]}" stroke="{t["border"]}"/>'
                        f'<circle cx="{cx + 22}" cy="{cy + 19}" r="5" fill="{col}"/>')
-        c.text(cx + 38, cy + 24.5, s, 15, 600)
+        c.text(cx + 38, cy + 24.5, txt, 15, 600)
 
     # boundaries
-    c.boundary(40, 380, 960, 660, t["ops"], "OPERATIONAL PLANE", "Docker Compose · 3 containers",
+    c.boundary(40, 380, 960, 800, t["ops"], "OPERATIONAL PLANE", "Docker Compose",
                icons=("docker",), tab="right")
-    c.boundary(1060, 380, 1300, 660, t["ana"], "ANALYTICAL PLANE",
+    c.boundary(1060, 380, 1300, 800, t["ana"], "ANALYTICAL PLANE",
                "Databricks Free Edition · Unity Catalog workspace.*", icons=("databricks",))
     c.boundary(1090, 452, 600, 208, t["ext"], "EXTERNAL", "Databricks AI services")
-    c.boundary(40, 1232, 2320, 250, t["dlv"], "DELIVERY PLANE", "GitHub · trunk-based, PR-gated",
+    c.boundary(40, 1380, 2320, 250, t["dlv"], "DELIVERY PLANE", "GitHub · trunk-based, PR-gated",
                icons=("github",))
 
     # operational containers
-    c.card(80, 455, 440, 195, t["ops"], "CONTAINER · SPA", "Web console",
-           "React 19 · Vite · TanStack Query",
-           ["Overview, orders, sales, sellers, operations,", "pipeline, assistant and documents pages.",
-            "nginx serves the build and proxies /api."],
-           icons=("react", "vite", "nginx"))
-    c.card(620, 455, 340, 195, t["ops"], "CONTAINER · REST API", "Backend API",
+    c.card(80, 455, 380, 195, t["ops"], "CONTAINER · WEB APP", "Control Tower",
+           "React 19 · Vite · Radix · GSAP",
+           ["Today brief, 9 role pages, ⌘K,", "imports and data-contract views.",
+            "nginx serves it, proxies /api."],
+           icons=("react", "gsap", "nginx"))
+    c.card(540, 455, 420, 195, t["ops"], "CONTAINER · REST API", "Backend API",
            "FastAPI · SQLAlchemy · Pydantic",
-           ["/orders /stats /ai /documents", "MiniLM embeddings for doc chunks",
-            "Alembic migrates before serving", "32 pytest tests"],
+           ["/insights /stats /orders /imports", "/governance /ai · live brief, cached",
+            "on a data version · 53 pytest tests"],
            icons=("fastapi", "python"))
-    c.card(80, 760, 440, 200, t["ops"], "CONTAINER · BATCH JOB", "Revenue forecast",
+    c.card(80, 720, 380, 180, t["ops"], "CONTAINER · BATCH JOB", "Revenue forecast",
            "scikit-learn Random Forest · Prophet",
-           ["30-day revenue projection, retrained by", "mise run forecast. RF ships (3.4% MAPE);",
-            "Prophet rides as a second opinion."],
+           ["30-day outlook; RF ships (3.4% MAPE),", "Prophet rides as a second opinion."],
            icons=("scikitlearn", "python"))
-    c.card(620, 760, 340, 200, t["ops"], "DATABASE · SYSTEM OF RECORD", "PostgreSQL 16",
-           "7 migrations · CHECK + FK",
-           ["6 core tables · 1,000,000 orders", "final_price CHECK ±₹5.00",
-            "delivery-status lifecycle enforced"],
+    c.card(620, 720, 340, 180, t["ok"], "LIBRARY · IN THE API", "Data contracts",
+           "Great Expectations 1.x",
+           ["Import contract · 46 expectations", "Books contract · 29 (R1–R7, H1)",
+            "runs stored; failures hit the brief"],
+           icons=("contract", "pandas"), title_size=20)
+    c.card(540, 970, 420, 180, t["ops"], "DATABASE · SYSTEM OF RECORD", "PostgreSQL 16",
+           "9 migrations · CHECK + FK",
+           ["6 core tables · 1,000,000 orders", "+ imports, governance runs, audit",
+            "final_price CHECK ±₹5.00"],
            icons=("postgresql",), shape="cylinder")
 
     # analytical containers — row 1 (consumers)
@@ -377,9 +397,9 @@ def container(theme: str) -> str:
            "Databricks SQL warehouse",
            ["Revenue and fulfillment", "dashboards on Gold", "(bi/*.lvdash.json)"],
            icons=("databricks",))
-    c.card(2040, 455, 290, 195, t["ana"], "CONTAINER · ML", "Return propensity",
-           "notebook 05 · MLflow",
-           ["Trains on Gold features,", "runs tracked in MLflow;", "not served yet"],
+    c.card(2040, 455, 290, 195, t["ana"], "CONTAINER · ML", "MLflow experiments",
+           "notebook 05 · scikit-learn",
+           ["Return propensity explored:", "no feature predicts returns,", "so no model is served"],
            icons=("mlflow", "scikitlearn"))
 
     # analytical containers — row 2 (medallion)
@@ -405,20 +425,33 @@ def container(theme: str) -> str:
     c.text(2316, 1006.5, "bronze_ingest › silver_build › dq_gate › gold_build › sql_refresh",
            12.5, 500, t["ana"], MONO, "end")
 
-    # relationships — people
-    c.arrow([(205, 332 + 2), (205, 455)], t["person"])
-    c.arrow([(485, 334), (485, 455)], t["person"])
-    c.label(345, 405, ["Uses"], tech="HTTPS")
+    # shared rule vocabulary
+    c.front.append(f'<rect x="1240" y="1062" width="1090" height="84" rx="12" fill="{t["card2"]}" '
+                   f'stroke="{t["ok"]}" stroke-opacity="0.55" stroke-dasharray="6 5" stroke-width="1.3"/>')
+    c.text(1262, 1090, "ONE RULE VOCABULARY · GE CONTRACTS + LAKEHOUSE GATE", 11.5, 500, t["ok"], MONO, spacing=1.1)
+    c.text(1262, 1118, "R1 keys · R2 unique · R3 foreign keys · R4 money invariant · R5 values · R6 ranges · "
+           "R7 dates · R8 revenue · R9 schema · H1 hygiene", 14, 500, t["muted"])
+
+    # relationships — people and new data
+    c.arrow([(185, 334), (185, 455)], t["person"])
+    c.arrow([(435, 334), (435, 455)], t["person"])
+    c.label(310, 405, ["Uses"], tech="HTTPS")
+    c.arrow([(600, 330), (600, 455)], t["ext"], 2)
+    c.label(590, 418, ["POST /imports"], anchor="end")
     c.arrow([(1865, 334), (1865, 455)], t["person"])
     c.label(1865, 405, ["Explores Gold"], tech="Databricks UI")
 
     # operational
-    c.arrow([(520, 552), (620, 552)])
-    c.label(570, 520, ["/api"], tech="JSON")
-    c.arrow([(790, 650), (790, 760)])
-    c.label(790, 705, ["Reads / writes"], tech="SQLAlchemy · psycopg 3")
-    c.arrow([(520, 860), (620, 860)])
-    c.label(570, 828, ["writes"], tech="forecasts")
+    c.arrow([(460, 552), (540, 552)])
+    c.label(500, 520, ["/api"], tech="JSON")
+    c.arrow([(575, 650), (575, 970)])
+    c.label(565, 935, ["reads / writes"], anchor="end", tech="SQLAlchemy")
+    c.arrow([(790, 650), (790, 720)], t["ok"], 2)
+    c.label(800, 685, ["gates every CSV row"], anchor="start", color=t["ok"])
+    c.arrow([(790, 900), (790, 970)], t["ok"], 2)
+    c.label(800, 935, ["validates the books"], anchor="start", color=t["ok"])
+    c.arrow([(270, 900), (270, 1060), (540, 1060)])
+    c.label(405, 1060, ["writes forecasts"])
 
     # API → AI services
     c.arrow([(960, 568), (1090, 568)])
@@ -428,7 +461,6 @@ def container(theme: str) -> str:
     for x0, x1, col in ((1275, 1325, t["bronze"]), (1525, 1575, t["silver"]),
                         (1775, 1825, t["ok"]), (1985, 2035, t["gold"])):
         c.arrow([(x0, 860), (x1, 860)], col, 2.4)
-    # orchestration ticks
     for xc in (1425, 1675, 1905, 2182):
         c.mid.append(f'<path d="M{xc},962 V980" stroke="{t["ana"]}" stroke-opacity="0.6" stroke-width="1.4" stroke-dasharray="3 3"/>')
 
@@ -439,65 +471,68 @@ def container(theme: str) -> str:
     c.arrow([(1540, 705), (1540, 645)], t["gold"], 2.2)
     c.label(1990, 705, ["reads Gold"], color=t["gold"])
 
-    # source CSV (bottom centre) → both paths
-    c.card(830, 1068, 400, 115, t["ext"], "EXTERNAL · DATASET", "E-commerce CSV",
+    # source CSV (bottom centre) → seed + landing
+    c.card(830, 1215, 400, 110, t["ext"], "EXTERNAL · DATASET", "E-commerce CSV",
            "1M rows · 133 MB · git-ignored", [], icons=("csv",))
-    c.arrow([(900, 1068), (900, 960)], t["ext"], 2)
-    c.label(888, 1004, ["seed + 8 acceptance checks"], anchor="end")
-    c.arrow([(1185, 1068), (1185, 960)], t["ext"], 2)
-    c.label(1198, 1004, ["dbx-upload"], anchor="start")
+    c.arrow([(900, 1215), (900, 1150)], t["ext"], 2)
+    c.label(888, 1188, ["seed · full refresh"], anchor="end")
+    c.arrow([(1185, 1215), (1185, 960)], t["ext"], 2)
+    c.label(1198, 1188, ["dbx-upload"], anchor="start")
 
     # delivery plane
-    c.person(80, 1292, 250, 160, "Data engineer",
-             ["Ships every change through", "a PR; owns DQ rules and IaC"], color=t["dlv"])
-    c.card(380, 1285, 260, 170, t["dlv"], "SOURCE CONTROL", "GitHub repo", "trunk-based",
+    y0 = 1433
+    c.person(80, y0 + 7, 250, 160, "Data engineer",
+             ["Ships every change through", "a PR; owns contracts and IaC"], color=t["dlv"])
+    c.card(380, y0, 260, 170, t["dlv"], "SOURCE CONTROL", "GitHub repo", "trunk-based",
            ["main is protected;", "merges only via PR"], icons=("github",))
-    c.card(690, 1285, 400, 170, t["dlv"], "CI · EVERY PULL REQUEST", "GitHub Actions CI",
+    c.card(690, y0, 400, 170, t["dlv"], "CI · EVERY PULL REQUEST", "GitHub Actions CI",
            "ci.yml · 10 jobs · no secrets",
-           ["lockfile, lint, lakehouse unittest, Gold SQL", "guards, terraform validate, migrations,",
-            "pytest, frontend build, CD + doc checks"], icons=("githubactions",))
-    c.card(1140, 1285, 400, 170, t["dlv"], "CD · TAG v*", "GitHub Actions CD", "cd.yml · 3 jobs",
+           ["lakehouse unittest, Gold SQL guards, migrations,", "pytest incl. a Great Expectations run,",
+            "web lint + tests + build, terraform validate"], icons=("githubactions",))
+    c.card(1140, y0, 400, 170, t["dlv"], "CD · TAG v*", "GitHub Actions CD", "cd.yml · 3 jobs",
            ["Build images to GHCR, smoke the compose", "stack, deploy the job, run the medallion,",
             "validate Gold counts and revenue."], icons=("githubactions", "docker"))
-    c.card(1590, 1285, 340, 170, t["dlv"], "INFRASTRUCTURE AS CODE", "Terraform", "databricks provider",
+    c.card(1590, y0, 340, 170, t["dlv"], "INFRASTRUCTURE AS CODE", "Terraform", "databricks provider",
            ["bronze / silver / gold schemas,", "landing + documents volumes,", "the medallion job"],
            icons=("terraform",))
-    c.card(1980, 1285, 340, 170, t["dlv"], "DEVELOPER TOOLING", "mise + uv", "18 tasks · uv.lock",
-           ["dev, seed, forecast, dbx-*, tf-*;", "embedded Postgres locally,", "no Docker needed"],
+    c.card(1980, y0, 340, 170, t["dlv"], "DEVELOPER TOOLING", "mise + uv", "19 tasks · uv.lock",
+           ["dev, seed, governance, forecast,", "dbx-*, tf-*; embedded Postgres,", "no Docker needed locally"],
            icons=("uv", "python"))
 
-    c.arrow([(330, 1370), (380, 1370)], t["dlv"])
-    c.arrow([(640, 1370), (690, 1370)], t["dlv"])
-    c.arrow([(1090, 1370), (1140, 1370)], t["dlv"])
-    c.label(1115, 1268, ["tag v*"], color=t["dlv"])
-    # CD → operational (images) and → Databricks (job)
-    c.arrow([(1180, 1285), (1180, 1206), (700, 1206), (700, 1040)], t["dlv"])
-    c.label(688, 1122, ["images (GHCR)", "+ compose smoke"], anchor="end")
-    c.arrow([(1440, 1285), (1440, 1022)], t["dlv"])
-    c.label(1440, 1122, ["deploy_job.py", "run + validate Gold"])
-    c.arrow([(1760, 1285), (1760, 1022)], t["dlv"])
-    c.label(1760, 1122, ["provisions schemas,", "volumes, job"])
+    c.arrow([(330, y0 + 85), (380, y0 + 85)], t["dlv"])
+    c.arrow([(640, y0 + 85), (690, y0 + 85)], t["dlv"])
+    c.arrow([(1090, y0 + 85), (1140, y0 + 85)], t["dlv"])
+    c.label(1115, y0 - 17, ["tag v*"], color=t["dlv"])
+    c.arrow([(1180, y0), (1180, 1354), (700, 1354), (700, 1180)], t["dlv"])
+    c.label(688, 1270, ["images (GHCR)", "+ compose smoke"], anchor="end")
+    c.arrow([(1440, y0), (1440, 1180)], t["dlv"])
+    c.label(1440, 1270, ["deploy_job.py", "run + validate Gold"])
+    c.arrow([(1760, y0), (1760, 1180)], t["dlv"])
+    c.label(1760, 1270, ["provisions schemas,", "volumes, job"])
 
     # results band
     res = [("1,000,000", "orders, Bronze to Gold"),
-           ("0", "DQ violations, rules R1–R9"),
-           ("₹9.94B", "Gold revenue, reconciled ±₹1,000"),
-           ("10", "CI jobs gate every pull request"),
-           ("63", "tests: 32 API · 4 CD · 27 lakehouse"),
-           ("3.4%", "MAPE, 30-day revenue forecast")]
-    c.text(60, 1530, "VALIDATED AT 1M ROWS", 11.5, 500, t["faint"], MONO, spacing=1.4)
-    tw = (2280 - 5 * 20) / 6
+           ("0", "DQ violations, R1–R9"),
+           ("₹9.94B", "Gold revenue, ±₹1,000"),
+           ("75", "GE expectations (46 + 29)"),
+           ("10", "CI jobs on every PR"),
+           ("89", "tests: API, CD, lakehouse, web"),
+           ("3.4%", "MAPE, 30-day forecast")]
+    c.text(60, 1680, "VALIDATED AT 1M ROWS", 11.5, 500, t["faint"], MONO, spacing=1.4)
+    n = len(res)
+    tw = (2280 - (n - 1) * 18) / n
     for i, (v, cap) in enumerate(res):
-        x = 60 + i * (tw + 20)
-        c.front.append(f'<rect x="{x:.1f}" y="1545" width="{tw:.1f}" height="104" rx="14" fill="{t["card"]}" stroke="{t["border"]}"/>')
-        c.text(x + 22, 1600, v, 36, 800, t["ok"] if v == "0" else t["text"], spacing=-0.6)
-        c.text(x + 22, 1630, cap, 14, 400, t["muted"])
+        x = 60 + i * (tw + 18)
+        c.front.append(f'<rect x="{x:.1f}" y="1695" width="{tw:.1f}" height="104" rx="14" fill="{t["card"]}" stroke="{t["border"]}"/>')
+        c.text(x + 20, 1750, v, 34, 800, t["ok"] if v in ("0", "75") else t["text"], spacing=-0.6)
+        c.text(x + 20, 1780, cap, 13.5, 400, t["muted"])
 
-    c.legend(1735, REPO_URL)
+    c.legend(1885, REPO_URL)
     return c.svg("Smart-ERP C4 Level 2 — container diagram",
-                 "Operational plane (React console, FastAPI, forecast job, PostgreSQL), analytical plane "
-                 "(Databricks: landing volume, Bronze, Silver, DQ gate R1-R9, Gold, AI/BI dashboards, MLflow, "
-                 "Genie, Foundation Model API), delivery plane (GitHub, CI, CD, Terraform, mise + uv).")
+                 "Operational plane (Control Tower web app, FastAPI, forecast job, Great Expectations data "
+                 "contracts, PostgreSQL), analytical plane (Databricks: landing volume, Bronze, Silver, DQ gate "
+                 "R1-R9, Gold, AI/BI dashboards, MLflow, Genie, Foundation Model API), delivery plane (GitHub, "
+                 "CI, CD, Terraform, mise + uv). Marketplace exports enter through POST /imports.")
 
 
 # ── Level 1 — system context ────────────────────────────────────────────────
@@ -506,7 +541,7 @@ def context(theme: str) -> str:
     t = c.t
     c.header("C4 MODEL  ·  LEVEL 1  ·  SYSTEM CONTEXT",
              "Smart-ERP — who uses it, and what it depends on",
-             "One software system, four kinds of people, four external systems.", STACK)
+             "One software system, four kinds of people, four external systems — the marketplace control tower.", STACK)
 
     # system
     sx, sy, sw_, sh = 840, 270, 720, 760
@@ -514,13 +549,13 @@ def context(theme: str) -> str:
                    f'stroke="{t["ana"]}" stroke-width="2.2" filter="url(#shadow)"/>')
     c.text(sx + 44, sy + 56, "SOFTWARE SYSTEM", 13, 500, t["ana"], MONO, spacing=1.4)
     c.text(sx + 44, sy + 106, "Smart-ERP DataOps Platform", 36, 800, spacing=-0.6)
-    for i, ln in enumerate(["Multi-seller e-commerce marketplace (India, INR ₹).",
-                            "PostgreSQL records every order. A Databricks medallion",
-                            "lakehouse turns the history into KPI-ready Gold, behind",
-                            "a fail-fast quality gate. A FastAPI + React console",
-                            "serves operators and stakeholders."]):
+    for i, ln in enumerate(["A marketplace control tower (India, INR ₹). PostgreSQL",
+                            "records every order and serves a live morning brief;",
+                            "Great Expectations contracts gate every import and the",
+                            "books; a Databricks medallion builds Gold for BI and AI",
+                            "behind a fail-fast quality gate."]):
         c.text(sx + 44, sy + 152 + i * 27, ln, 18, 400, t["muted"])
-    planes = [("Operational plane", "React console · FastAPI · PostgreSQL 16 · forecast job",
+    planes = [("Operational plane", "Control Tower · FastAPI · GE contracts · PostgreSQL 16",
                t["ops"], ("react", "fastapi", "postgresql")),
               ("Analytical plane", "Bronze › Silver › DQ gate R1–R9 › Gold · AI/BI · MLflow",
                t["ana"], ("databricks", "apachespark", "delta")),
@@ -537,10 +572,10 @@ def context(theme: str) -> str:
     c.text(sx + sw_ / 2, sy + sh - 34, "Zoom in: Level 2 container diagram", 14, 500, t["faint"], MONO, "middle")
 
     # people (left)
-    ppl = [(335, "Marketplace operator", ["Day-to-day order", "and stock work"],
-            ["Creates orders, moves delivery", "status, watches stock"], "HTTPS"),
-           (645, "Business stakeholder", ["Needs revenue and", "seller performance"],
-            ["Reads KPIs and trends;", "asks the assistant"], "HTTPS"),
+    ppl = [(335, "Marketplace operator", ["Day-to-day orders,", "deliveries and stock"],
+            ["Acts on the brief; books orders,", "closes shipments, imports data"], "HTTPS"),
+           (645, "Business stakeholder", ["Needs pace, margin", "and seller performance"],
+            ["Reads the brief and KPIs;", "asks the assistant"], "HTTPS"),
            (955, "Data analyst", ["Works in the", "Databricks workspace"],
             ["Explores Gold in AI/BI", "dashboards and Genie"], "Databricks UI")]
     for cy, name, desc, rel, tech in ppl:
@@ -549,8 +584,8 @@ def context(theme: str) -> str:
         c.label(660, cy, rel, tech=tech)
 
     # externals (right)
-    ext = [(335, "E-commerce dataset", "CSV · 1,000,000 rows · 133 MB", ["Amazon-style marketplace", "orders, 24 months"],
-            ("csv",), ["Seeds PostgreSQL and", "lands in Bronze"], "file upload", "in"),
+    ext = [(335, "Marketplace data", "CSV · 1M-row history + new exports", ["Seed: 24 months of orders;", "exports: incremental imports"],
+            ("csv",), ["Seeds the books, lands in", "Bronze; exports go through GE"], "file upload", "in"),
            (645, "Databricks AI services", "Genie · Foundation Model API", ["NL-to-SQL over Gold;", "LLM for document answers"],
             ("databricks",), ["Asks Genie and the", "FM API (grounded)"], "REST", "out"),
            (955, "Hugging Face Hub", "all-MiniLM-L6-v2", ["Sentence-embedding", "model weights"],
@@ -562,7 +597,7 @@ def context(theme: str) -> str:
         c.label(1740, cy, rel, tech=rtech)
 
     # delivery (bottom)
-    c.person(100, 1150, 380, 132, "Data engineer", ["Owns pipeline, DQ", "rules and IaC"], color=t["dlv"])
+    c.person(100, 1150, 380, 132, "Data engineer", ["Owns pipeline, data", "contracts and IaC"], color=t["dlv"])
     c.card(1000, 1135, 400, 150, t["ext"], "EXTERNAL SYSTEM", "GitHub", "repo · Actions · GHCR",
            ["10 CI jobs gate every PR;", "CD runs on a v* tag"], icons=("github", "githubactions"))
     c.arrow([(480, 1216), (1000, 1216)], t["dlv"])
@@ -602,7 +637,7 @@ def main() -> None:
     browser = None if svg_only else chromium()
     if not svg_only and not browser:
         sys.exit("Chromium not found: install it or pass --svg-only")
-    for name, fn, size in (("context", context, (2400, 1420)), ("container", container, (2400, 1770))):
+    for name, fn, size in (("context", context, (2400, 1420)), ("container", container, (2400, 1930))):
         for theme in THEMES:
             out = HERE / f"c4-{name}-{theme}.svg"
             out.write_text(fn(theme))
