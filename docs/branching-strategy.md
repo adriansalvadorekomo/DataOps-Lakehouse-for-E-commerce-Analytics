@@ -2,7 +2,7 @@
 
 > **Status:** ✅ Active (Trunk-Based Development)
 > **Owner:** DevOps / Platform
-> **Applies to:** `adriansalvadorekomo/smart-erp-dataopts`
+> **Applies to:** `adriansalvadorekomo/DataOps-Lakehouse-for-E-commerce-Analytics` (formerly `smart-erp-dataopts`; GitHub redirects the old name)
 > **Purpose:** Define how code reaches production safely and repeatably across all 10 phases of the monorepo, and how CI/CD enforces it.
 
 ---

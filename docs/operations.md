@@ -33,7 +33,7 @@ Logs land in `logs/dev-backend.log` and `logs/dev-frontend.log`.
 | `mise run seed` | Ingest the 1M CSV into Postgres + run acceptance checks |
 | `mise run forecast` | Retrain RF + Prophet, update `revenue_forecasts` table |
 | `mise run dataops` | Full DataOps loop: db → seed → forecast → tests → lakehouse → report |
-| `mise run test-backend` | Backend pytest suite (36 tests) |
+| `mise run test-backend` | Backend pytest suite: 32 API tests + 4 CD contract tests |
 
 ### Databricks
 
@@ -99,7 +99,7 @@ A personal access token with scopes: `jobs`, `files`, `sql`. Generate it in the 
 → [1/6] database     Postgres up, migrated, role + DB ensured
 → [2/6] seed         1M rows present → skipped; else ingest + acceptance checks
 → [3/6] forecast     RF + Prophet retrained, revenue_forecasts updated
-→ [4/6] tests        36 backend tests + 4 CD contract tests
+→ [4/6] tests        32 backend tests + 4 CD contract tests
 → [5/6] lakehouse    27 unit tests (no cluster) + local Bronze→Silver→DQ→Gold
 → [6/6] report       orders count, total revenue, forecast row count
 ✓ dataops loop green
@@ -123,7 +123,7 @@ Each stage fails fast (`set -e`). A failure in any stage aborts the loop and pri
 | `sql-parse` | Gold SQL reads only `silver.*` / `gold.*`, never OLTP/raw; `estimated_` margin label present | Medallion boundary violation |
 | `terraform-validate` | `terraform init -backend=false && terraform validate` | Invalid workspace assets |
 | `database-sanity` | Apply all 7 migrations against throwaway Postgres; assert core tables + invariant constraints | Broken migration |
-| `backend-test` | Alembic migrate + 36 pytest tests against throwaway Postgres | API contract violation |
+| `backend-test` | Alembic migrate + 32 pytest tests against throwaway Postgres | API contract violation |
 | `frontend-build` | `npm ci + tsc -b + vite build` | TypeScript errors, build failure |
 | `seed-acceptance-note` | `docs/business-model.md` has `final_price`; `README.md` has `lakehouse` | Doc contract drift |
 | `delivery-checks` | CD contract tests (Gold math, job-JSON translation, compose/workflow sanity) | Broken delivery path |

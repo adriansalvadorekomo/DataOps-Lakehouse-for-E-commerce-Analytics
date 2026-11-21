@@ -26,8 +26,8 @@ You do not need Docker for local development. Docker is used only by the CD smok
 
 ```bash
 # Clone the repo
-git clone https://github.com/adriansalvadorekomo/smart-erp-dataopts.git
-cd smart-erp-dataopts
+git clone https://github.com/adriansalvadorekomo/DataOps-Lakehouse-for-E-commerce-Analytics.git
+cd DataOps-Lakehouse-for-E-commerce-Analytics
 
 # Install Python dependencies
 uv sync
@@ -111,7 +111,7 @@ smart-erp/
 │       ├── schemas/             Pydantic request/response schemas
 │       ├── core/                Config (env-driven), DB session factory
 │       └── jobs/                Background jobs (refresh_forecast.py)
-│   ├── tests/                   pytest test suite (36 tests)
+│   ├── tests/                   pytest test suite (32 tests)
 │   └── alembic/                 Alembic migrations (3 versions: initial, forecasts, documents)
 │
 ├── frontend/src/
@@ -157,7 +157,7 @@ mise run test-backend
 # runs: uv run pytest backend/tests scripts/cd/test_cd.py -q
 ```
 
-The backend tests use a real Postgres instance (the local dev database). They apply Alembic migrations to a throwaway database (`smart_test`) and run 36 tests covering:
+The backend tests use a real Postgres instance (the local dev database). They apply Alembic migrations to a throwaway database (`smart_test`) and run 36 tests (32 API tests in `backend/tests` + 4 CD contract tests in `scripts/cd/test_cd.py`) covering:
 - Orders API: create, list, filter, status transition lifecycle
 - Stats API: overview, revenue trend, category breakdown, seller performance
 - Forecast service: model training and reading
