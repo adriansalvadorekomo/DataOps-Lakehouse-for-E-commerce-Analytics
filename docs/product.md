@@ -34,6 +34,8 @@ The Control Tower turns the books into a short, ranked **morning brief**. Every 
 
 ## 3. The signals in the brief
 
+![The Today brief: ranked signals with evidence, a next step and a link, a pace panel and a trust panel](screenshots/today-dark.png)
+
 Computed by `backend/app/services/insights.py` for the selected window (7, 30, 90 or 365 days, always ending on the **latest order date**, not the wall clock).
 
 | Signal | Rule (data-derived) | KPI | Typical next step |
@@ -56,6 +58,8 @@ Severity: **act** (do something today) · **watch** (keep an eye on it) · **inf
 **Why the data-derived thresholds matter.** A fixed rule like "flag sellers above 60% late" breaks as soon as the mix changes. Comparing each seller with their peers, and requiring the difference to be statistically unlikely to be chance, keeps the brief honest: in a 30-day window most sellers have fewer than ten orders, and a seller with 6 orders and 100% late is noise, not news.
 
 ## 4. When new data arrives
+
+![Data & governance: drop a marketplace export, what every row is checked for, import history](screenshots/data-governance-dark.png)
 
 This is the product's answer to "what happens when we add new data?"
 
@@ -90,6 +94,11 @@ The lakehouse keeps its own fail-fast gate (R1–R9 in Spark, before Gold builds
 GE runs with usage analytics disabled; no data or metadata leaves the process.
 
 ## 6. Ask: plain-language answers, rated by the people who use them
+
+<p align="center">
+  <img src="screenshots/ask-report-light.png" width="49%" alt="A category report answering 'Revenue by category': headline, donut chart, what this means, next step and follow-up questions.">
+  <img src="screenshots/ask-report-dark.png" width="49%" alt="A seller watchlist answering 'Which sellers need attention?': key figures, a ranking chart, what this means and a button to review the sellers.">
+</p>
 
 Ask works like a chat (in the spirit of Claude): one prompt box, documents attached *inside* it with the paperclip (or dropped on it), Enter to send, a stop button while it works.
 

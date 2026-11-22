@@ -56,7 +56,7 @@ export function DataHub() {
         ))}
       </div>
 
-      <SectionTitle id="import" title="Bring in new data" note="What happens when new data arrives: validate → append → every window, KPI and signal moves forward on the next load; the forecast is flagged stale until retrained." />
+      <SectionTitle id="import" title="Bring in new data" note="New orders are checked, then added. Every figure, chart and alert in the app updates on the next load, and the forecast is marked out of date until it is refreshed." />
       <div className="mb-6"><ImportPanel /></div>
       <section className="panel mb-10 p-5">
         <h3 className="mb-3 font-sans text-[15px] font-semibold">Import history</h3>

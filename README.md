@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/today-dark.png" width="100%" alt="The Today brief: '2 things need you today' in dot-matrix numerals; ranked signal cards (recent shipments past their promise, repeat customers gone quiet, then watch items such as return hotspots and never-closed shipments), each with evidence, a next step and a link; a pace panel and a 'Can I trust these numbers?' panel.">
+  <img src="docs/screenshots/today-dark.png" width="100%" alt="The Today brief, dark theme: '2 things need you today' in dot-matrix numerals; ranked signal cards (recent shipments past their promised delivery time, repeat customers gone quiet), each with its evidence, a next step and a link; a pace panel (revenue ₹410.0M, +0.4%) and a 'Can I trust these numbers?' panel.">
 </p>
 
 ---
@@ -35,13 +35,28 @@ A marketplace team does not need more dashboards; it needs to know **what to do 
 | Fulfillment / inventory | What is stuck? What runs out first? | Shipments past their promise; a reorder list ranked by days of cover |
 | CRM / data science | Who is drifting away? | Customers quiet for more than twice their own usual gap, by lifetime value |
 | Anyone | A question in plain words | A Claude-style chat that answers like an assistant's briefing — a short report with the key figures, a chart chosen for the question and where to act; every answer can be rated 👍/👎, and ratings are kept to improve it |
-| Data owner | Can I report on this? | Great Expectations contracts on every import and on the books |
+| Data owner | Can I report on this? | Automatic data checks (Great Expectations) on every import and on all the records |
 
-**When new data arrives**, drop a marketplace export (CSV) on the *Data & governance* page: every row is checked by the import contract, valid rows are appended idempotently, rejected rows come back with the rule they broke, the books contract re-runs, and every window, KPI and signal moves forward on the next load. If the newest days look incomplete, the brief says *partial data* instead of reporting a collapse. → [docs/product.md](docs/product.md)
+**When new data arrives**, drop a marketplace export (CSV) on the *Data & governance* page: every row is checked (Great Expectations), new rows are added, rows already loaded are skipped, refused rows come back with a plain reason, all records are checked again, and every figure and alert moves forward on the next load. If the newest days look incomplete, the brief says *partial data* instead of reporting a collapse. → [docs/product.md](docs/product.md)
+
+## Ask, and get a briefing
+
+Ask a question in plain words and the answer comes back the way an executive assistant would brief you: a short report with the finding, the key figures, **a chart chosen for the question**, what it means, a button to the page where you act on it, and the natural next questions. Every answer can be rated 👍 / 👎; ratings are stored as a preference dataset to improve the answers later.
 
 <p align="center">
-  <img src="docs/screenshots/data-governance-dark.png" width="49%" alt="Data & governance: CSV import with the Great Expectations import contract, import history, and the books contract with every expectation, rule and severity.">
-  <img src="docs/screenshots/revenue-light.png" width="49%" alt="Revenue (light theme): KPI tiles with deltas, daily revenue against the previous window, monthly revenue, category momentum and estimated margin by discount band.">
+  <img src="docs/screenshots/ask-report-light.png" width="49%" alt="Ask, light theme: the question 'Revenue by category' answered as a category report — headline 'Electronics brings in 66% of revenue', a donut chart with each category's revenue and share, 'What this means', a button to open the revenue view, follow-up questions, and copy / helpful / not helpful buttons.">
+  <img src="docs/screenshots/ask-report-dark.png" width="49%" alt="Ask, dark theme: the question 'Which sellers need attention?' answered as a seller watchlist — 14 sellers to review, ₹22.0M of their revenue, a ranking of the share of their deliveries that arrived late, what this means and a button to review these sellers.">
+</p>
+
+## Every page answers one question
+
+<p align="center">
+  <img src="docs/screenshots/forecast-light.png" width="100%" alt="Forecast: expected revenue for the next 30 days (₹419.0M, +2.2% on the last 30 days) with the 7-day average of actual revenue, the expected line with its likely range, a pulsing 'today' marker and how reliable the forecast has been.">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/revenue-light.png" width="49%" alt="Revenue, light theme: revenue, orders, average order value and estimated margin with their change, daily revenue against the previous 30 days, and monthly revenue.">
+  <img src="docs/screenshots/data-governance-dark.png" width="49%" alt="Data & governance, dark theme: drop a marketplace export, what every row is checked for in plain words, and the import history.">
 </p>
 
 ## How it works

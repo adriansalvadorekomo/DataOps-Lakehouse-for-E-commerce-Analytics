@@ -25,6 +25,21 @@ from backend.app.models.entities import CATEGORIES, DELIVERY_STATUSES, DEVICES, 
 MIN_DATE = datetime.date(2024, 3, 31)
 
 
+_PLAIN = {
+    "user_id": "customer ID", "customer_id": "customer ID", "product_id": "product ID",
+    "seller_id": "seller ID", "order_id": "order number", "category": "category",
+    "subcategory": "subcategory", "brand": "brand", "price": "list price", "discount": "discount",
+    "final_price": "price paid", "rating": "product rating", "review_count": "review count",
+    "stock": "stock level", "seller_rating": "seller rating", "purchase_date": "order date",
+    "shipping_time_days": "promised delivery time", "location": "delivery city",
+    "device": "device", "payment_method": "payment method", "delivery_status": "delivery status",
+}
+
+
+def _plain(col: str) -> str:
+    return _PLAIN.get(col, col.replace("_", " "))
+
+
 def E(kind: str, rule: str, why: str, severity: str = "critical", **kwargs) -> dict:  # noqa: N802
     return {"type": kind, "kwargs": kwargs, "meta": {"rule": rule, "severity": severity, "why": why}}
 
@@ -39,12 +54,12 @@ def import_contract(today: datetime.date) -> list[dict]:
                 "seller_rating", "shipping_time_days")
     numeric = ("price", "discount", "final_price", "rating", "review_count", "stock",
                "seller_rating", "shipping_time_days")
-    out = [E("ExpectColumnValuesToNotBeNull", "R1 required", f"{c} must be filled in", column=c)
+    out = [E("ExpectColumnValuesToNotBeNull", "R1 required", f"The {_plain(c)} is filled in", column=c)
            for c in required]
-    out += [E("ExpectColumnValuesToNotBeNull", "R1 type", f"{c} must be a number", column=f"{c}_num")
+    out += [E("ExpectColumnValuesToNotBeNull", "R1 type", f"The {_plain(c)} is a number", column=f"{c}_num")
             for c in numeric]
     out += [
-        E("ExpectColumnValuesToNotBeNull", "R1 type", "purchase_date must be a YYYY-MM-DD date",
+        E("ExpectColumnValuesToNotBeNull", "R1 type", "The order date is a real date (year-month-day)",
           column="purchase_date_parsed"),
         E("ExpectColumnValuesToMatchRegex", "R1 type", "Counts must be whole numbers",
           column="review_count", regex=r"^\s*\d+(\.0+)?\s*$"),
@@ -52,7 +67,7 @@ def import_contract(today: datetime.date) -> list[dict]:
           column="stock", regex=r"^\s*\d+(\.0+)?\s*$"),
         E("ExpectColumnValuesToMatchRegex", "R1 type", "Shipping time must be whole days",
           column="shipping_time_days", regex=r"^\s*\d+(\.0+)?\s*$"),
-        E("ExpectColumnValuesToBeInSet", "R5 enum", "Delivery status must be a lifecycle state",
+        E("ExpectColumnValuesToBeInSet", "R5 enum", "The delivery status is in transit, delivered, delivered late or returned",
           column="status_norm", value_set=list(DELIVERY_STATUSES)),
         E("ExpectColumnValuesToBeInSet", "R5 enum", "Category must be one of the five categories",
           column="category", value_set=list(CATEGORIES)),
@@ -64,7 +79,7 @@ def import_contract(today: datetime.date) -> list[dict]:
           column="price_num", min_value=0.01),
         E("ExpectColumnValuesToBeBetween", "R6 range", "Discount is seller-funded and capped at 70%",
           column="discount_num", min_value=0, max_value=70),
-        E("ExpectColumnValuesToBeBetween", "R6 range", "final_price cannot be negative",
+        E("ExpectColumnValuesToBeBetween", "R6 range", "The price paid is not negative",
           column="final_price_num", min_value=0),
         E("ExpectColumnValuesToBeBetween", "R6 range", "Product rating is 0–5",
           column="rating_num", min_value=0, max_value=5),
@@ -77,7 +92,7 @@ def import_contract(today: datetime.date) -> list[dict]:
         E("ExpectColumnValuesToBeBetween", "R6 range", "Shipping promise is 1–6 days",
           column="shipping_time_days_num", min_value=1, max_value=6),
         E("ExpectColumnValuesToBeBetween", "R4 final_price",
-          "final_price must equal price × (1 − discount/100) within ±₹5.00",
+          "The price paid matches the list price minus the discount (to within ₹5)",
           column="final_price_deviation", max_value=5.0),
         E("ExpectColumnValuesToBeBetween", "R7 date",
           f"Orders start on {MIN_DATE.isoformat()} and cannot be in the future",
@@ -96,8 +111,8 @@ RULE_ORDER = ("R1 required", "R1 type", "R5 enum", "R6 range", "R4 final_price",
 def books_contract(today: datetime.date) -> dict[str, dict]:
     """asset name → {"table" | "query", "expectations": [...]}"""
     ids = lambda col: [  # noqa: E731
-        E("ExpectColumnValuesToNotBeNull", "R1 null keys", f"Every row needs a {col}", column=col),
-        E("ExpectColumnValuesToBeUnique", "R2 unique", f"{col} identifies exactly one row", column=col),
+        E("ExpectColumnValuesToNotBeNull", "R1 null keys", f"Every record has a {_plain(col)}", column=col),
+        E("ExpectColumnValuesToBeUnique", "R2 unique", f"No {_plain(col)} appears twice", column=col),
     ]
     return {
         "customers": {"table": "customers", "expectations": ids("customer_id") + [
@@ -134,7 +149,7 @@ def books_contract(today: datetime.date) -> dict[str, dict]:
               column="device", value_set=list(DEVICES)),
             E("ExpectColumnValuesToBeBetween", "R6 range", "Shipping promise is 1–6 days",
               column="shipping_time_days", min_value=1, max_value=6),
-            E("ExpectColumnValuesToBeBetween", "R7 date", "Order dates fall inside the business window",
+            E("ExpectColumnValuesToBeBetween", "R7 date", "Every order date is after the marketplace opened and not in the future",
               column="order_date", min_value=MIN_DATE.isoformat(), max_value=today.isoformat()),
         ]},
         "order_items": {"table": "order_items", "expectations": [
@@ -153,7 +168,7 @@ def books_contract(today: datetime.date) -> dict[str, dict]:
             "query": "SELECT order_item_id, ABS(final_price - ROUND(unit_price * quantity "
                      "* (1 - discount_pct / 100), 2)) AS deviation FROM public.order_items",
             "expectations": [E("ExpectColumnValuesToBeBetween", "R4 final_price",
-                               "final_price = unit_price × qty × (1 − discount/100) within ±₹5.00",
+                               "The price paid matches the list price minus the discount (to within ₹5)",
                                column="deviation", max_value=5.0)],
         },
         "orphans": {
@@ -166,14 +181,14 @@ def books_contract(today: datetime.date) -> dict[str, dict]:
                      "UNION ALL SELECT 'orders→customers' FROM public.orders o "
                      "WHERE NOT EXISTS (SELECT 1 FROM public.customers c WHERE c.customer_id = o.customer_id)",
             "expectations": [E("ExpectTableRowCountToEqual", "R3 foreign keys",
-                               "Every order line points to an existing order, product and seller",
+                               "Every sale belongs to a real order, product, seller and customer",
                                value=0)],
         },
         "stale_in_transit": {
             "query": "SELECT order_id FROM public.orders WHERE delivery_status = 'IN TRANSIT' "
                      "AND (SELECT MAX(order_date) FROM public.orders) - order_date > 30",
             "expectations": [E("ExpectTableRowCountToEqual", "H1 lifecycle hygiene",
-                               "No order stays 'in transit' for more than 30 days (promise is 1–6)",
+                               "No order stays 'in transit' for more than 30 days (deliveries take 1–6)",
                                severity="warning", value=0)],
         },
     }
