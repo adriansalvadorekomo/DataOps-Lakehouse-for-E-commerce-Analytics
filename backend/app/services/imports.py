@@ -58,13 +58,13 @@ MAX_BYTES = 50 * 1024 * 1024
 MAX_STORED_REJECTIONS = 500
 
 RULES = {
-    "R0 columns": "The file is missing required columns",
-    "R1 required": "A required field is empty",
-    "R1 type": "A field has the wrong type",
-    "R4 final_price": "final_price ≠ price × (1 − discount/100) within ±₹5.00",
-    "R5 enum": "A value is outside the allowed list",
-    "R6 range": "A number is outside its allowed range",
-    "R7 date": "The date is before 2024-03-31 or in the future",
+    "R0 columns": "The file is missing some of the expected columns",
+    "R1 required": "A value that must be filled in is empty",
+    "R1 type": "A value is in the wrong format (for example text where a number is expected)",
+    "R4 final_price": "The price paid doesn't match the list price minus the discount (by more than ₹5)",
+    "R5 enum": "A value isn't one of the allowed options (for example an unknown category)",
+    "R6 range": "A number is outside its possible range (for example a discount above 70%)",
+    "R7 date": "The order date is before the marketplace opened or in the future",
 }
 
 TEMPLATE_ROWS = [
