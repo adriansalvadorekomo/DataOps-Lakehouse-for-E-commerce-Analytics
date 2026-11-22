@@ -11,8 +11,11 @@ const brief: Brief = {
   counts: { act: 1, watch: 1, info: 0 },
   empty: false,
   signals: [
-    { id: "stockout-14d", domain: "inventory", severity: "act", title: "59 selling products run out within 14 days", metric: 59, baseline: null, delta: null, unit: "count", evidence: ["P47311: 3 left"], next_step: "Reorder these first.", link: "/inventory#reorder", kpi: "K8", magnitude: 1 },
-    { id: "sellers-late", domain: "sellers", severity: "watch", title: "4 sellers deliver late significantly more often than their peers", metric: 4, baseline: 0.7, delta: null, unit: "count", evidence: [], next_step: "Review delivery SLAs.", link: "/sellers?flag=late_deliveries", kpi: "K4", magnitude: 0.1 },
+    { id: "stockout-14d", domain: "inventory", severity: "act", title: "59 selling products run out within 14 days", metric: 59, baseline: null, delta: null, unit: "count", evidence: ["P47311: 3 left"], next_step: "Reorder these first.", link: "/inventory#reorder", kpi: "K8", magnitude: 1,
+      figure: { value: 139336, kind: "inr", caption: "of sales in the last 30 days at stake" },
+      visual: { kind: "ranking", title: "Days of stock left", unit: "days", items: [{ label: "P47311", value: 4, current: true, hint: "Zara · 3 left" }], reference: { label: "One week", value: 7 } },
+      facts: [{ label: "Out within a week", value: "12" }], note: "Ranked by days of stock left." },
+    { id: "sellers-late", domain: "sellers", severity: "watch", title: "4 sellers deliver late significantly more often than their peers", metric: 4, baseline: 0.7, delta: null, unit: "count", evidence: [], next_step: "Review delivery times.", link: "/sellers?flag=late_deliveries", kpi: "K4", magnitude: 0.1 },
   ],
 };
 
@@ -30,7 +33,7 @@ vi.mock("@/lib/api", async (orig) => {
 });
 
 describe("Today brief", () => {
-  it("ranks signals with severity, evidence, next step and a link", async () => {
+  it("draws each signal as a briefing: figure, chart, facts, next step and a link", async () => {
     const { Today } = await import("@/features/today/Today");
     render(
       <QueryClientProvider client={new QueryClient()}>
@@ -43,5 +46,14 @@ describe("Today brief", () => {
     expect(screen.getByText("Reorder these first.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open Inventory/ })).toHaveAttribute("href", "/inventory#reorder");
     expect(screen.getByText("29 of 29 passed")).toBeInTheDocument();
+    // The briefing parts: headline figure, the chart chosen for the signal, labelled facts, caveat.
+    expect(screen.getByRole("img", { name: "₹139K" })).toBeInTheDocument();
+    expect(screen.getByText("Days of stock left")).toBeInTheDocument();
+    expect(screen.getByText("P47311")).toBeInTheDocument();
+    expect(screen.getByText("One week ·", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Out within a week")).toBeInTheDocument();
+    expect(screen.getByText("Ranked by days of stock left.")).toBeInTheDocument();
+    // Severity is spelled out on every card, not only shown by colour.
+    expect(screen.getByText("Watch")).toBeInTheDocument();
   });
 });

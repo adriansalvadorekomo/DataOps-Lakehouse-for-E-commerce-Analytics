@@ -8,11 +8,13 @@ new days, sellers or products.
 
 Signal shape (stable API contract, see docs/product.md):
     id, domain, severity (act | watch | info), title, metric, baseline, delta,
-    unit, evidence[], next_step, link, kpi
+    unit, evidence[], next_step, link, kpi,
+    figure, visual, facts[], note   (what the brief card draws; see _figure / _visual)
 """
 from __future__ import annotations
 
 import datetime
+import logging
 from collections.abc import Callable
 
 from sqlalchemy import func, select
@@ -21,6 +23,8 @@ from sqlalchemy.orm import Session
 from backend.app.models.entities import RevenueForecast
 from backend.app.services import analytics, stats
 from backend.app.services.period import Window, resolve_window
+
+log = logging.getLogger(__name__)
 
 SEVERITY_RANK = {"act": 0, "watch": 1, "info": 2}
 
@@ -39,7 +43,32 @@ def _signal(**kw) -> dict:
     kw.setdefault("unit", None)
     kw.setdefault("evidence", [])
     kw.setdefault("magnitude", 0.0)
+    kw.setdefault("figure", None)
+    kw.setdefault("visual", None)
+    kw.setdefault("facts", [])
+    kw.setdefault("note", None)
     return kw
+
+
+# Structured parts of a signal, drawn by the brief card:
+#   figure  the one number to remember: {value, kind: pct|signed_pct|inr|count|days, caption, of?}
+#           (`of` = the value is a share of a whole: drawn as a 10 × 10 dot grid)
+#   visual  the chart chosen for the signal:
+#           compare  two or three values side by side (this period vs last, actual vs expected)
+#           steps    a distribution over ordered buckets (e.g. days past promise)
+#           ranking  the named items behind the signal, with an optional reference value
+#   facts   two or three labelled figures, already formatted
+#   note    one caveat line (e.g. "estimated")
+def _figure(value: float, kind: str, caption: str, of: bool = False) -> dict:
+    return {"value": value, "kind": kind, "caption": caption, "of": of}
+
+
+def _visual(kind: str, title: str, unit: str, items: list[dict], reference: dict | None = None) -> dict:
+    return {"kind": kind, "title": title, "unit": unit, "items": items, "reference": reference}
+
+
+def _fact(label: str, value: str) -> dict:
+    return {"label": label, "value": value}
 
 
 _IMPORT_RULES = {
@@ -57,6 +86,10 @@ def _plain_rule(name: str) -> str:
         if key in n:
             return label
     return name
+
+
+def _signed(x: float | None) -> str:
+    return "n/a" if x is None else f"{'+' if x >= 0 else '−'}{abs(x) * 100:.1f}%"
 
 
 def _pct(x: float | None) -> str:
@@ -97,6 +130,13 @@ def revenue_pace(session: Session, w: Window) -> list[dict]:
             next_step=("Open Revenue to see which categories and cities explain the drop."
                        if change < 0 else "Open Revenue to see what is driving the growth."),
             link="/revenue", magnitude=abs(change),
+            figure=_figure(change, "signed_pct", f"revenue vs the previous {w.days} days"),
+            visual=_visual("compare", "Revenue", "inr", [
+                {"label": f"Last {w.days} days", "value": m["current"], "current": True},
+                {"label": f"Previous {w.days} days", "value": m["previous"]}]),
+            facts=[_fact("Orders", f"{summary['metrics']['orders']['current']:,.0f}"),
+                   _fact("Orders vs previous", _signed(summary["metrics"]["orders"]["relative_change"])),
+                   _fact("Average order", _inr(summary["metrics"]["aov"]["current"]))],
         ))
     # Actuals vs forecast where forecasted days now have data (e.g. after an import).
     rows = session.execute(
@@ -120,6 +160,11 @@ def revenue_pace(session: Session, w: Window) -> list[dict]:
                           f"Actual {_inr(actual)} against an expected {_inr(fc)}"],
                 next_step="Check Forecast; refresh the model if the gap persists.",
                 link="/forecast", magnitude=abs(gap),
+                figure=_figure(gap, "signed_pct", f"actual vs forecast over {len(pairs)} days"),
+                visual=_visual("compare", "Revenue on the forecasted days", "inr", [
+                    {"label": "Actual", "value": actual, "current": True},
+                    {"label": "Expected", "value": fc}]),
+                facts=[_fact("Days compared", f"{len(pairs)}")],
             ))
     return out
 
@@ -141,6 +186,10 @@ def category_momentum(session: Session, w: Window) -> list[dict]:
                       f"{_inr(worst['current'])} vs {_inr(worst['previous'])}"],
             next_step="Review pricing, stock and seller coverage for this category.",
             link=f"/revenue?category={worst['category']}", magnitude=abs(worst["change"]) * worst["share"],
+            figure=_figure(worst["change"], "signed_pct", f"{worst['category']} revenue vs the previous {w.days} days"),
+            visual=_category_visual(cats, worst["category"], w),
+            facts=[_fact("Share of revenue", _pct(worst["share"])),
+                   _fact(f"Last {w.days} days", _inr(worst["current"]))],
         ))
     if best["change"] > 0.05 and best is not worst:
         out.append(_signal(
@@ -150,8 +199,19 @@ def category_momentum(session: Session, w: Window) -> list[dict]:
             evidence=[f"Share of revenue: {_pct(best['share'])}"],
             next_step="Make sure stock cover keeps up with demand in this category.",
             link=f"/inventory?category={best['category']}", magnitude=best["change"] * best["share"],
+            figure=_figure(best["change"], "signed_pct", f"{best['category']} revenue vs the previous {w.days} days"),
+            visual=_category_visual(cats, best["category"], w),
+            facts=[_fact("Share of revenue", _pct(best["share"])),
+                   _fact(f"Last {w.days} days", _inr(best["current"]))],
         ))
     return out
+
+
+def _category_visual(cats: list[dict], highlight: str, w: Window) -> dict:
+    return _visual("ranking", f"Change by category, last {w.days} days vs previous", "signed_pct", [
+        {"label": c["category"], "value": c["change"], "current": c["category"] == highlight,
+         "hint": _inr(c["current"])}
+        for c in sorted(cats, key=lambda c: c["change"])])
 
 
 def discount_efficiency(session: Session, w: Window) -> list[dict]:
@@ -172,6 +232,13 @@ def discount_efficiency(session: Session, w: Window) -> list[dict]:
                   "Estimated: assumes goods cost 65% of their list price (real costs are not recorded)"],
         next_step="Cap seller-funded discounts near the break-even level, or confirm real costs first.",
         link="/revenue#margin", magnitude=share,
+        figure=_figure(b["est_margin"], "inr", "estimated margin on sales at 50–70% off"),
+        visual=_visual("ranking", "Estimated margin by discount", "signed_pct", [
+            {"label": f"{x['band']}% off", "value": x["est_margin_pct"], "current": x["band"] == "50–70",
+             "hint": _inr(x["est_margin"])} for x in m["by_discount_band"]]),
+        facts=[_fact("Share of revenue", _pct(share)),
+               _fact("Break-even discount", f"{m['break_even_discount_pct']}%")],
+        note="Estimated: assumes goods cost 65% of their list price (real costs are not recorded).",
     )]
 
 
@@ -204,10 +271,26 @@ def seller_outliers(session: Session, w: Window) -> list[dict]:
                       "gaps too large to be chance are flagged",
                       f"They carry {_pct(share)} of revenue in this window"]
             + [f"{s['seller_id']}: {_pct(s[rate_key])} on {s['orders']} orders" for s in top],
-            next_step=("Review delivery SLAs with these sellers, starting with the largest."
+            next_step=("Review delivery times with these sellers, starting with the largest."
                        if flag == "late_deliveries"
                        else "Check listing accuracy and product quality with these sellers."),
             link=f"/sellers?flag={flag}", magnitude=share,
+            figure=_figure(
+                sum(s[rate_key] * s["orders"] for s in flagged) / max(sum(s["orders"] for s in flagged), 1), "pct",
+                (f"of their deliveries arrived late, against {_pct(peers[p50_key])} for a typical seller"
+                 if flag == "late_deliveries"
+                 else f"of their orders came back, against {_pct(peers[p50_key])} for a typical seller"),
+                of=True),
+            visual=_visual("ranking", ("Share of deliveries that arrived late" if flag == "late_deliveries"
+                                       else "Share of orders returned"), "pct",
+                           [{"label": s["seller_id"], "value": s[rate_key], "current": True,
+                             "hint": f"{s['orders']:,} orders"} for s in flagged[:5]],
+                           reference={"label": "Typical seller", "value": peers[p50_key]}),
+            facts=[_fact("Sellers flagged", f"{len(flagged):,}"),
+                   _fact("Their share of revenue", _pct(share)),
+                   _fact("Worst 10% of sellers start at", _pct(peers[p90_key]))],
+            note=f"Only sellers with at least {peers['min_orders']} orders are compared, and only gaps "
+                 "too large to be chance are flagged.",
         ))
     return out
 
@@ -229,6 +312,13 @@ def transit_backlog(session: Session, w: Window) -> list[dict]:
                if b["past_promise"]],
             next_step="Chase carriers for these shipments, oldest first.",
             link="/fulfillment#ageing", magnitude=share,
+            figure=_figure(share, "pct", f"of the {recent_total:,} orders shipped in the last 30 days and "
+                           "still in transit", of=True),
+            visual=_visual("steps", "Shipments past their promise, by days since order", "count",
+                           [{"label": b["bucket"].replace(" days", "d"), "value": b["past_promise"] or 0}
+                            for b in a["buckets"] if b["bucket"] != "30+ days"]),
+            facts=[_fact("Past promise", f"{a['recent_past_promise']:,}"),
+                   _fact("Still in transit", f"{recent_total:,}")],
         ))
     if a["stale_over_30d"]:
         share = a["stale_over_30d"] / max(a["in_transit"], 1)
@@ -242,6 +332,11 @@ def transit_backlog(session: Session, w: Window) -> list[dict]:
                       "Until closed, they are excluded from the late-delivery rate"],
             next_step="Close them as delivered, delayed or returned at the source.",
             link="/fulfillment#ageing", magnitude=share,
+            figure=_figure(share, "pct", "of all orders marked in transit", of=True),
+            facts=[_fact("Stuck over 30 days", f"{a['stale_over_30d']:,}"),
+                   _fact("All in transit", f"{a['in_transit']:,}"),
+                   _fact("Promised delivery", "1–6 days")],
+            note="Until closed, they are left out of the late-delivery rate.",
         ))
     return out
 
@@ -265,6 +360,13 @@ def stockout_risk(session: Session, w: Window) -> list[dict]:
                f"{i['days_of_cover']} days of cover" for i in urgent[:3]],
             next_step="Reorder these first; they are ranked by days of cover.",
             link="/inventory#reorder", magnitude=len(urgent) / max(cover["critical"], 1),
+            figure=_figure(rev, "inr", f"of sales in the last {cover['velocity_days']} days at stake"),
+            visual=_visual("ranking", "Days of stock left", "days",
+                           [{"label": i["product_id"], "value": i["days_of_cover"], "current": i["days_of_cover"] <= 7,
+                             "hint": f"{i['brand']} · {i['stock']} left"} for i in urgent[:5]],
+                           reference={"label": "One week", "value": 7}),
+            facts=[_fact("Products", f"{len(urgent):,}"),
+                   _fact("Out within a week", f"{sum(1 for i in urgent if i['days_of_cover'] <= 7):,}")],
         ))
     if cover["out_of_stock"]:
         out.append(_signal(
@@ -275,6 +377,10 @@ def stockout_risk(session: Session, w: Window) -> list[dict]:
                       f"{cover['threshold']} units"],
             next_step="Decide which to reorder and which to delist.",
             link="/inventory", magnitude=cover["out_of_stock"] / max(cover["products"], 1),
+            figure=_figure(cover["out_of_stock"], "count", f"of {cover['products']:,} products have none left"),
+            facts=[_fact("Zero stock", f"{cover['out_of_stock']:,}"),
+                   _fact(f"Under {cover['threshold']} units", f"{cover['critical']:,}"),
+                   _fact("Products", f"{cover['products']:,}")],
         ))
     return out
 
@@ -297,6 +403,12 @@ def return_hotspots(session: Session, w: Window) -> list[dict]:
            for p in hot[:3]],
         next_step="Inspect listings and quality for these brands before the next promotion.",
         link="/inventory#returns", magnitude=refunded,
+        figure=_figure(refunded, "inr", f"refunded on these brands in the last {w.days} days"),
+        visual=_visual("ranking", "Share of orders returned", "pct",
+                       [{"label": p["brand"], "value": p["return_rate"], "current": True,
+                         "hint": f"{p['category']} · {p['lift']:.1f}× usual"} for p in hot[:5]],
+                       reference={"label": "Usual", "value": h["baseline_return_rate"]}),
+        facts=[_fact("Brands", f"{len(hot):,}"), _fact("Usual return rate", _pct(h["baseline_return_rate"]))],
     )]
 
 
@@ -318,6 +430,12 @@ def churn_risk(session: Session, w: Window) -> list[dict]:
            for t in c["top_at_risk"]],
         next_step="Target them with a win-back offer, highest lifetime value first.",
         link="/customers#at-risk", magnitude=risk["revenue_share"],
+        figure=_figure(risk["revenue_share"], "pct", "of lifetime revenue came from them", of=True),
+        visual=_visual("ranking", "Days since their last order", "days",
+                       [{"label": t["customer_id"], "value": t["days_since"], "current": True,
+                         "hint": f"usually every {t['avg_gap_days']:.0f} days"} for t in c["top_at_risk"]]),
+        facts=[_fact("Customers", f"{risk['customers']:,}"), _fact("Lifetime revenue", _inr(risk["revenue"]))],
+        note="Quiet for more than twice their usual time between orders.",
     )]
 
 
@@ -334,13 +452,17 @@ def data_trust(session: Session, w: Window) -> list[dict]:
             evidence=[f"{_plain_rule(c['rule'])}: {c['violations']:,} records" for c in failed[:4]],
             next_step="Numbers touching these records may be wrong; fix the source before reporting.",
             link="/data#quality", magnitude=1.0,
+            figure=_figure(sum(c["violations"] for c in failed), "count", "records to fix"),
+            visual=_visual("ranking", "Records to fix, by problem", "count",
+                           [{"label": _plain_rule(c["rule"]), "value": c["violations"], "current": True}
+                            for c in failed[:5]]),
         ))
     fc_asof = session.execute(select(func.max(RevenueForecast.asof_date))).scalar()
     if fc_asof is None:
         out.append(_signal(
             id="forecast-missing", domain="data", kpi="Forecast", severity="info",
             title="No revenue forecast is published yet",
-            evidence=["Run `mise run forecast` to train and publish the 30-day outlook"],
+            evidence=["Publish the 30-day outlook from the Forecast page"],
             next_step="Publish a forecast so pace can be compared with expectations.",
             link="/forecast", magnitude=0.1,
         ))
@@ -355,6 +477,9 @@ def data_trust(session: Session, w: Window) -> list[dict]:
                       f"Books now run to {w.as_of.isoformat()}"],
             next_step="Refresh the forecast so it learns from the new days.",
             link="/forecast", magnitude=min(lag / 30, 1.0),
+            figure=_figure(lag, "days", "between the forecast and the latest sales"),
+            facts=[_fact("Forecast built on sales up to", fc_asof.isoformat()),
+                   _fact("Books run to", w.as_of.isoformat())],
         ))
     from backend.app.governance.runs import latest as latest_run
 
@@ -362,19 +487,19 @@ def data_trust(session: Session, w: Window) -> list[dict]:
     if run is None:
         out.append(_signal(
             id="governance-none", domain="data", kpi="Data checks", severity="info",
-            title="The data contract has not been validated yet",
+            title="The data has not been checked yet",
             evidence=["Automatic checks confirm the records are complete and consistent; they run on "
                       "demand and after every import"],
-            next_step="Run a governance check from the Data page.", link="/data#governance",
+            next_step="Run the data checks from the Data & governance page.", link="/data#governance",
             magnitude=0.1,
         ))
     elif run.status in ("failed", "error"):
         failed = [r for r in (run.results or []) if not r["success"] and r["severity"] == "critical"]
         out.append(_signal(
             id=f"governance-failed-{run.run_id}", domain="data", kpi="Data checks", severity="act",
-            title=(f"{run.critical_failures} critical data-contract expectation"
+            title=(f"{run.critical_failures} critical data check"
                    f"{'s' if run.critical_failures != 1 else ''} failed" if run.status == "failed"
-                   else "The last governance run could not complete"),
+                   else "The last data check could not complete"),
             evidence=[r["why"] for r in failed[:4]] or ["The check could not finish; try again later"],
             next_step="Numbers built on these records may be wrong; fix them at the source.",
             link="/data#governance", magnitude=1.0,
@@ -391,6 +516,10 @@ def data_trust(session: Session, w: Window) -> list[dict]:
                       for rule, n in (batch["rejections_by_rule"] or {}).items()][:4],
             next_step="Download the rejection report, fix the rows at the source and re-upload.",
             link=f"/data/imports/{batch['batch_id']}", magnitude=0.5,
+            figure=_figure(batch["rows_rejected"] / max(batch["rows_total"], 1), "pct", "of the last import was refused", of=True),
+            visual=_visual("ranking", "Rows refused, by reason", "count",
+                           [{"label": _IMPORT_RULES.get(rule, rule), "value": n, "current": True}
+                            for rule, n in (batch["rejections_by_rule"] or {}).items()][:5]),
         ))
     return out
 
@@ -432,9 +561,11 @@ def _brief_all(session: Session, days: int) -> dict:
         except Exception as e:  # noqa: BLE001 — one broken signal must not blank the brief
             session.rollback()
             signals.append(_signal(id=f"error-{fn.__name__}", domain="data", kpi="—", severity="info",
-                                   title=f"Signal '{fn.__name__}' could not be computed",
-                                   evidence=[f"{type(e).__name__}: {str(e)[:160]}"],
-                                   next_step="Check the API logs.", link="/data", magnitude=0.0))
+                                   title="One part of the brief could not be worked out",
+                                   evidence=["The other signals are unaffected"],
+                                   next_step="Try again in a minute; if it persists, ask the data team.",
+                                   link="/data", magnitude=0.0))
+            log.warning("signal %s failed: %s", fn.__name__, e)
     ratio = completeness(session, w)
     partial = ratio is not None and ratio < PARTIAL_BELOW
     if partial:
@@ -444,6 +575,7 @@ def _brief_all(session: Session, days: int) -> dict:
                 sig["severity"] = "info"
                 sig["title"] = f"Partial data · {sig['title']}"
                 sig["evidence"] = ["Compare with caution: the current window looks incomplete"] + sig["evidence"]
+                sig["note"] = "Compare with caution: the current period looks incomplete."
         signals.append(_signal(
             id="partial-window", domain="data", kpi="Data checks", severity="act",
             title=f"The last {w.days} days hold only {ratio * 100:.0f}% of the previous period's orders",
@@ -454,6 +586,8 @@ def _brief_all(session: Session, days: int) -> dict:
             next_step="Check that the last import covers whole days for every channel; revenue "
                       "signals are marked partial until it does.",
             link="/data#import", magnitude=1.0 - ratio,
+            figure=_figure(ratio, "pct", "of the previous period's orders are loaded", of=True),
+            facts=[_fact("Books run to", w.as_of.isoformat())],
         ))
     signals.sort(key=lambda s: (SEVERITY_RANK[s["severity"]], -float(s["magnitude"] or 0)))
     return {"generated_at": generated_at, "window": w.as_dict(), "signals": signals, "empty": False,

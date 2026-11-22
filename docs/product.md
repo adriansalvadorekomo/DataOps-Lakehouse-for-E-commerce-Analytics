@@ -13,7 +13,7 @@ A multi-seller marketplace produces more numbers than anyone reads. Dashboards a
 The Control Tower turns the books into a short, ranked **morning brief**. Every item:
 
 - is computed **live** from the PostgreSQL books on every load (no nightly extract to go stale),
-- carries its **evidence** (the numbers that triggered it) and a **next step**,
+- reads like a one-page briefing: **the number to remember** (a 10 × 10 dot grid when it is a share of a whole), **the chart chosen for it** (this period against the last, a spread over days, or the sellers, brands, products or customers behind it, against a typical value), the **supporting figures**, and a **next step**,
 - links to the page where the decision is made,
 - names the **KPI** it relates to, with the business-model definition one click away,
 - uses thresholds that come **from the data itself** (peer percentiles, baseline rates, significance tests), so it stays meaningful when the data changes.
