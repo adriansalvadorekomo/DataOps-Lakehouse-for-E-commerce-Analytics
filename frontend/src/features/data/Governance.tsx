@@ -9,6 +9,14 @@ import { Tag } from "@/components/data/Badges";
 import { SUITE_LABEL, TRIGGER_LABEL, ruleLabel } from "./plain";
 import { Dots, EmptyState, Skeleton } from "@/components/data/States";
 
+const RUN_STATUS: Record<string, { label: string; dot: string; pill: string }> = {
+  passed: { label: "All passed", dot: "bg-good", pill: "bg-good-wash text-good" },
+  warning: { label: "To tidy up", dot: "bg-warn", pill: "bg-warn-wash text-warn" },
+  running: { label: "Checking", dot: "bg-violet", pill: "bg-violet-wash text-violet" },
+  failed: { label: "Problems", dot: "bg-signal", pill: "bg-signal-wash text-signal-ink" },
+  error: { label: "Didn't finish", dot: "bg-signal", pill: "bg-signal-wash text-signal-ink" },
+};
+
 export function ExpectationRow({ r }: { r: ExpectationResult }) {
   const Icon = r.success ? CheckCircle2 : r.severity === "critical" ? CircleAlert : TriangleAlert;
   return (
@@ -87,21 +95,45 @@ export function Governance() {
         </div>
       </section>
       <aside className="panel h-fit p-5">
-        <div className="label mb-3">Recent checks</div>
-        <ul className="space-y-2 text-[13px]">
-          {runs.data?.length === 0 && <li className="text-ink-3">No runs yet.</li>}
-          {runs.data?.map((r) => (
-            <li key={r.run_id} className="flex items-center justify-between gap-2">
-              <span className="num text-ink-3">#{r.run_id}</span>
-              <span className="text-ink-2">{TRIGGER_LABEL[r.trigger] ?? r.trigger}</span>
-              <Tag tone={r.status === "passed" ? "good" : r.status === "warning" ? "warn" : r.status === "running" ? "violet" : "signal"}>{r.status === "passed" ? "all passed" : r.status === "warning" ? "to tidy up" : r.status === "running" ? "checking" : "problems"}</Tag>
-              <span className="text-[12px] text-ink-3">{relativeTime(r.started_at)}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-4 border-t border-line pt-3 text-[12.5px] text-ink-3">
-          <span className="font-semibold text-signal-ink">Serious problems</span> mean some reported numbers may be wrong. <span className="font-semibold text-warn">Things to tidy up</span> don't change the numbers but should be fixed where the data comes from.
-        </p>
+        <div className="mb-4 flex items-center justify-between">
+          <span className="label">Recent checks</span>
+          {runs.data && runs.data.length > 0 && <span className="text-[12px] text-ink-3">{runs.data.length} shown</span>}
+        </div>
+        {runs.data?.length === 0 && <p className="text-[13px] text-ink-3">No checks yet.</p>}
+        {/* A timeline: one column of dots, one of text, one of statuses — every row aligned. */}
+        <ol className="relative">
+          {runs.data?.map((r, i) => {
+            const s = RUN_STATUS[r.status] ?? RUN_STATUS.failed;
+            const last = i === (runs.data?.length ?? 0) - 1;
+            return (
+              <li key={r.run_id} className="relative grid grid-cols-[16px_minmax(0,1fr)_auto] items-start gap-x-3 pb-4 last:pb-0">
+                {!last && <span className="absolute left-[7px] top-4 h-[calc(100%-8px)] w-px bg-line" aria-hidden="true" />}
+                <span className="relative mt-[5px] flex size-[15px] items-center justify-center rounded-full bg-panel">
+                  <span className={cn("size-[9px] rounded-full", s.dot, r.status === "running" && "animate-pulse-dot")} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-[13.5px] font-medium text-ink">{TRIGGER_LABEL[r.trigger] ?? r.trigger}</span>
+                  <span className="block text-[12px] text-ink-3">{relativeTime(r.started_at)}</span>
+                </span>
+                <span className={cn("mt-px whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold", s.pill)}>{s.label}</span>
+              </li>
+            );
+          })}
+        </ol>
+        <dl className="mt-5 space-y-2 border-t border-line pt-4 text-[12.5px]">
+          <div className="grid grid-cols-[16px_1fr] gap-x-3">
+            <span className="mt-[5px] size-[9px] justify-self-center rounded-full bg-signal" />
+            <span className="text-ink-3"><span className="font-semibold text-ink-2">Problems</span> — some reported numbers may be wrong.</span>
+          </div>
+          <div className="grid grid-cols-[16px_1fr] gap-x-3">
+            <span className="mt-[5px] size-[9px] justify-self-center rounded-full bg-warn" />
+            <span className="text-ink-3"><span className="font-semibold text-ink-2">To tidy up</span> — numbers are fine; fix it where the data comes from.</span>
+          </div>
+          <div className="grid grid-cols-[16px_1fr] gap-x-3">
+            <span className="mt-[5px] size-[9px] justify-self-center rounded-full bg-good" />
+            <span className="text-ink-3"><span className="font-semibold text-ink-2">All passed</span> — every check holds.</span>
+          </div>
+        </dl>
       </aside>
     </div>
   );
