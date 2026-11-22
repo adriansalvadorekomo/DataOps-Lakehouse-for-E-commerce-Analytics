@@ -106,10 +106,15 @@ def session(engine):
     s.commit()
     yield s
     # Reset mutated tables (keep catalog fixtures).
-    for table in ("public.order_items", "public.orders", "public.audit_log",
+    for table in ("public.ai_interactions", "public.import_rejections", "public.import_batches", "public.governance_runs",
+                  "public.order_items", "public.orders", "public.audit_log",
                   "public.document_chunks", "public.documents",
                   "public.revenue_forecasts"):
         s.execute(text(f"DELETE FROM {table};"))
+    s.execute(text("DELETE FROM public.inventory WHERE product_id <> 'P_TEST'"))
+    s.execute(text("DELETE FROM public.products WHERE product_id <> 'P_TEST'"))
+    s.execute(text("DELETE FROM public.sellers WHERE seller_id <> 'S_TEST'"))
+    s.execute(text("DELETE FROM public.customers WHERE customer_id <> 'U_TEST'"))
     s.execute(
         text(
             "UPDATE public.inventory SET stock = 100"

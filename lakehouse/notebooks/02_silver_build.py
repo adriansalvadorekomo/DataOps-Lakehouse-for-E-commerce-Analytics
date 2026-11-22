@@ -4,7 +4,7 @@
 # Contract: lakehouse/src/silver/transform.py. All enum normalization and
 # business grouping (mode city, latest snapshots) happens HERE and nowhere
 # else. Sample scale: full rebuild (CREATE OR REPLACE) — acceptable and
-# documented; production uses watermarked MERGE (docs/lakehouse.md §4).
+# documented; production uses watermarked MERGE (docs/architecture.md, "Analytical plane").
 # Widget: catalog.
 
 # COMMAND ----------
@@ -104,7 +104,9 @@ CREATE OR REPLACE TABLE {catalog}.silver.order_items AS
 SELECT
   o.order_id, s.product_id, s.seller_id, 1 AS quantity,
   s.price AS unit_price, s.discount AS discount_pct, s.final_price,
-  s.seller_rating AS seller_rating_at_sale
+  s.seller_rating AS seller_rating_at_sale,
+  -- As sold: category/brand vary per sale in the source (business-model §7, finding 9).
+  s.category, s.subcategory, s.brand
 FROM (
   SELECT *, ROW_NUMBER() OVER (ORDER BY purchase_date, user_id, product_id) AS rn
   FROM stg

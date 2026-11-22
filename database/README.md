@@ -47,6 +47,10 @@ Applied in filename order by `apply.sh`. All are idempotent.
 | `005_audit_log.sql` | `audit_log` table — append-only mutation trail, written in the same transaction as each change |
 | `006_revenue_forecasts.sql` | `revenue_forecasts` table — RF + Prophet daily projections; UNIQUE on `(model, target_date)` makes reruns idempotent |
 | `007_documents.sql` | `documents` + `document_chunks` tables — RAG document registry and text chunks with embeddings |
+| `008_imports.sql` | `orders.source_hash` (row fingerprint for idempotent imports), `import_batches` + `import_rejections`, and moves the id sequences past seeded ids |
+| `009_governance.sql` | `governance_runs` — Great Expectations results of the books contract |
+| `010_ai_feedback.sql` | `ai_interactions` — every Ask answer with its 👍/👎 rating and comment (preference data for later RLHF) |
+| `011_sale_attributes.sql` | `order_items.category / subcategory / brand` **as sold** (they vary per sale in the source), backfilled from staging |
 
 `002_core_tables.sql` uses DROP + CREATE (not IF NOT EXISTS) — it is an early-scaffold full refresh. All later migrations use `IF NOT EXISTS` and are safely rerunnable.
 
@@ -116,4 +120,4 @@ Alembic runs automatically when the Docker container starts (`backend/docker-ent
 
 The CSV (`data/amazon-e-commerce/amazon_ecommerce_1M.csv`) loads into `raw.purchases`, then normalizes into the six core tables via `scripts/seed/ingest.py`. The seed script enforces the acceptance checks in [docs/business-model.md](../docs/business-model.md) §6 before the ingest is considered complete.
 
-See [docs/data-engineering.md](../docs/data-engineering.md) for the full ingestion pipeline.
+See [docs/business-model.md §6](../docs/business-model.md#6-ingestion-and-acceptance-contract) for the full ingestion pipeline.

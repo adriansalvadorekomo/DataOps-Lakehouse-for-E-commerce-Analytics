@@ -1,6 +1,6 @@
 """Silver layer — cleaned, validated, standardized entities.
 
-Contract (see docs/lakehouse.md):
+Contract (see docs/architecture.md):
 - One table per OLTP entity: customers / sellers / products / inventory /
   orders / order_items. Same grains and business keys as
   ``docs/business-model.md`` §2 — Silver never redefines the domain.
@@ -63,5 +63,6 @@ def trim_record(record: dict) -> dict:
 # s_products  : latest price/rating/review_count per product_id at max(purchase_date)
 # s_inventory : distinct (product_id, purchase_date, stock), last-wins on same-day dupes
 # s_orders    : 1:1 with Bronze rows; delivery_status normalized; deterministic row surrogate
-# s_order_items: 1:1 with s_orders via shared surrogate; seller_rating_at_sale preserved
+# s_order_items: 1:1 with s_orders via shared surrogate; seller_rating_at_sale and
+#                category/subcategory/brand preserved AS SOLD (they vary per sale)
 # Each task: read bronze.raw_purchases → transform → quality gate → merge into silver.<entity>.

@@ -35,7 +35,7 @@ for i in $(seq 1 30); do
   sleep 1
 done
 
-PSQL="psql -h $SOCKDIR -p $PORT -U postgres -v ON_ERROR_STOP=1"
+PSQL="psql -h $SOCKDIR -p $PORT -U postgres -d postgres -v ON_ERROR_STOP=1"
 $PSQL -tc "SELECT 1 FROM pg_roles WHERE rolname='magrey'" | grep -q 1 \
   || $PSQL -c "CREATE ROLE magrey SUPERUSER LOGIN;" >/dev/null
 $PSQL -tc "SELECT 1 FROM pg_database WHERE datname='smart'" | grep -q 1 \
@@ -46,5 +46,18 @@ if ! $PSQL -d smart -tc "SELECT to_regclass('public.orders')" | grep -q orders; 
   echo "→ applying migrations"
   PGHOST="$SOCKDIR" PGPORT="$PORT" PGUSER=magrey PGDATABASE=smart \
     sh "$(dirname "$0")/../../database/apply.sh" >/dev/null
+fi
+# Incremental migrations added after the first apply (idempotent SQL).
+if ! $PSQL -d smart -tc "SELECT to_regclass('public.import_batches')" | grep -q import_batches; then
+  echo "→ applying 008_imports.sql"
+  $PSQL -d smart -q -f "$(dirname "$0")/../../database/migrations/008_imports.sql" >/dev/null
+fi
+if ! $PSQL -d smart -tc "SELECT to_regclass('public.governance_runs')" | grep -q governance_runs; then
+  echo "→ applying 009_governance.sql"
+  $PSQL -d smart -q -f "$(dirname "$0")/../../database/migrations/009_governance.sql" >/dev/null
+fi
+if ! $PSQL -d smart -tc "SELECT to_regclass('public.ai_interactions')" | grep -q ai_interactions; then
+  echo "→ applying 010_ai_feedback.sql"
+  $PSQL -d smart -q -f "$(dirname "$0")/../../database/migrations/010_ai_feedback.sql" >/dev/null
 fi
 echo "✓ postgres ready ($SOCKDIR:$PORT, db smart)"

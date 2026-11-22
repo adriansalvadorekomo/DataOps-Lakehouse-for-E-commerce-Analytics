@@ -3,7 +3,7 @@
 Genie writes the SQL itself against the workspace Gold tables and returns the
 query + result rows — the backend relays them with the space/question cited,
 so every answer stays checkable. Space setup (one-time UI step, see
-docs/bi.md § Genie): create space → attach the 4 Gold marts → set
+docs/operations.md, "Dashboards and Genie"): create space → attach the 4 Gold marts → set
 GENIE_SPACE_ID. Without it the endpoint answers 409 with setup instructions
 (explicit, never silent).
 """
@@ -44,7 +44,7 @@ def space_id() -> str:
     sid = os.environ.get("GENIE_SPACE_ID", "")
     if not sid:
         raise GenieError("GENIE_SPACE_ID is not set — create the Genie Space over "
-                         "Gold (docs/bi.md) and set its ID")
+                         "Gold (docs/operations.md, section Dashboards and Genie) and set its ID")
     return sid
 
 

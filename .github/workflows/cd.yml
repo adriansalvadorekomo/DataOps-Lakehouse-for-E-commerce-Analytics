@@ -1,6 +1,6 @@
 name: CD
 
-# Continuous delivery (see docs/branching-strategy.md §3): a maintainer tags
+# Continuous delivery (see docs/operations.md §5): a maintainer tags
 # main with `v*` (or runs this manually) → build backend + frontend images →
 # push to GHCR (tags only) → smoke the full compose stack (entrypoint migrates
 # before serving, so a broken migration fails here, not in prod) → deploy the

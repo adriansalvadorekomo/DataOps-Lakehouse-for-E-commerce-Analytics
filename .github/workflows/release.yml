@@ -1,6 +1,6 @@
 name: Release
 
-# Trunk-Based release flow (see docs/branching-strategy.md §3–§4).
+# Trunk-Based release flow (see docs/operations.md §5).
 # A maintainer tags main with `v*` → CI validates, then this builds/publishes.
 on:
   push:

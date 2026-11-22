@@ -1,6 +1,6 @@
 """Bronze layer — raw, byte-faithful landing zone.
 
-Contract (see docs/lakehouse.md):
+Contract (see docs/architecture.md):
 - One Delta table per source: ``bronze.raw_purchases`` mirrors the OLTP
   ``staging.purchases`` snapshot 1:1 (same grains, no business transforms).
 - Every record carries ``_ingest_ts`` (UTC ingestion timestamp) and
