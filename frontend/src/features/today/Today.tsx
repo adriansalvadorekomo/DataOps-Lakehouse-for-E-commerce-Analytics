@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, ShieldCheck } from "lucide-react";
-import { api, type Role, type Signal } from "@/lib/api";
+import { api, type Role } from "@/lib/api";
 import { date, delta, inr, int, pct, pts } from "@/lib/format";
 import { usePeriod, useParam } from "@/lib/hooks";
 import { gsap, useGSAP, withMotion } from "@/lib/motion";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { DotMatrix } from "@/components/data/DotMatrix";
 import { KpiInfo } from "@/components/data/KpiInfo";
 import { DeltaBadge, type Trend } from "@/components/data/KpiTile";
-import { SeverityBadge } from "@/components/data/Badges";
+import { SignalCard } from "./SignalCard";
 import { EmptyState, ErrorState, Skeleton } from "@/components/data/States";
 import { useReveal } from "@/components/data/useReveal";
 
@@ -23,72 +23,9 @@ const ROLES: { id: "" | Role; label: string }[] = [
   { id: "data", label: "Data" },
 ];
 
-const DOMAIN: Record<string, string> = {
-  revenue: "Revenue", category: "Category mix", pricing: "Pricing", sellers: "Sellers",
-  fulfillment: "Fulfillment", inventory: "Inventory", returns: "Returns", customers: "Customers", data: "Data trust",
-};
-
 function greeting() {
   const h = new Date().getHours();
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-}
-
-function linkLabel(link: string) {
-  const page = link.split(/[?#]/)[0];
-  return {
-    "/revenue": "Open Revenue", "/customers": "Open Customers", "/sellers": "Review sellers",
-    "/fulfillment": "Open Fulfillment", "/inventory": "Open Inventory", "/forecast": "Open Forecast",
-    "/data": "Open Data & governance",
-  }[page] ?? "Open";
-}
-
-function SignalCard({ s, rank }: { s: Signal; rank: number }) {
-  return (
-    <article
-      className={cn(
-        "signal panel reveal relative overflow-hidden p-5 pl-6",
-        s.severity === "act" && "border-signal/35",
-      )}
-      data-flip-id={s.id}
-    >
-      <span
-        className={cn(
-          "absolute inset-y-0 left-0 w-[3px]",
-          s.severity === "act" ? "bg-signal" : s.severity === "watch" ? "bg-warn" : "bg-line-strong",
-        )}
-      />
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="num text-[12px] text-ink-3">{String(rank).padStart(2, "0")}</span>
-        <SeverityBadge severity={s.severity} />
-        <span className="label">{DOMAIN[s.domain] ?? s.domain}</span>
-        {s.kpi && s.kpi.startsWith("K") ? <KpiInfo id={s.kpi} /> : <span className="label">· {s.kpi}</span>}
-      </div>
-      <h3 className="mt-3 text-[20px] leading-snug">{s.title}</h3>
-      {s.evidence.length > 0 && (
-        <ul className="mt-3 space-y-1.5 text-[13.5px] text-ink-2">
-          {s.evidence.map((e) => (
-            <li key={e} className="flex gap-2.5">
-              <span className="mt-[7px] size-1 shrink-0 rounded-full bg-ink-3" />
-              <span className="num">{e}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="mt-4 flex flex-col gap-3 border-t border-line pt-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[13.5px]">
-          <span className="font-semibold">Next step · </span>
-          <span className="text-ink-2">{s.next_step}</span>
-        </p>
-        <Link
-          to={s.link}
-          className="group inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[13px] font-medium transition-colors hover:border-ink hover:bg-ink hover:text-canvas"
-        >
-          {linkLabel(s.link)}
-          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-        </Link>
-      </div>
-    </article>
-  );
 }
 
 function PaceRow({ label, value, d, kpiId }: { label: string; value: string; d?: { text: string; dir: "up" | "down" | "flat"; trend: Trend }; kpiId?: string }) {

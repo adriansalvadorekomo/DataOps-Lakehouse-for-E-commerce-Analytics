@@ -42,7 +42,15 @@ def test_brief_shape_and_ordering(client):
     sev = [ranks[s["severity"]] for s in body["signals"]]
     assert sev == sorted(sev), "signals must be ordered by severity"
     for s in body["signals"]:
-        assert {"id", "domain", "severity", "title", "evidence", "next_step", "link", "kpi"} <= set(s)
+        assert {"id", "domain", "severity", "title", "evidence", "next_step", "link", "kpi",
+                "figure", "visual", "facts", "note"} <= set(s)
+        # What the card draws: a figure, a chart of a known kind, labelled facts.
+        if s["figure"]:
+            assert s["figure"]["kind"] in {"pct", "signed_pct", "inr", "count", "days"} and s["figure"]["caption"]
+        if s["visual"]:
+            assert s["visual"]["kind"] in {"compare", "steps", "ranking"} and s["visual"]["items"]
+            assert all({"label", "value"} <= set(i) for i in s["visual"]["items"])
+        assert all(set(f) == {"label", "value"} and isinstance(f["value"], str) for f in s["facts"])
     # A fresh test DB has no governance run and no forecast: both are surfaced.
     ids = {s["id"] for s in body["signals"]}
     assert "governance-none" in ids and "forecast-missing" in ids

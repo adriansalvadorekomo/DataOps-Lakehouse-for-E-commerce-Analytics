@@ -62,6 +62,29 @@ export interface Signal {
   link: string;
   kpi: string;
   magnitude: number;
+  /** The one number to remember; `of` = a share of a whole (drawn as a 10 × 10 dot grid). */
+  figure?: SignalFigure | null;
+  /** The chart chosen for this signal. */
+  visual?: SignalVisual | null;
+  /** Two or three labelled figures, already formatted. */
+  facts?: { label: string; value: string }[];
+  /** One caveat line, e.g. "estimated". */
+  note?: string | null;
+}
+
+export interface SignalFigure {
+  value: number;
+  kind: "pct" | "signed_pct" | "inr" | "count" | "days";
+  caption: string;
+  of?: boolean;
+}
+
+export interface SignalVisual {
+  kind: "compare" | "steps" | "ranking";
+  title: string;
+  unit: "inr" | "count" | "pct" | "signed_pct" | "days";
+  items: { label: string; value: number; current?: boolean; hint?: string }[];
+  reference?: { label: string; value: number } | null;
 }
 
 export interface Brief {
