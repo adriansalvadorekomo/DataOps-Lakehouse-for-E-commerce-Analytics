@@ -89,9 +89,9 @@ export function BookOrder() {
               <Field label="Device"><select className={input} value={f.device} onChange={set("device")}>{DEVICES.map((c) => <option key={c}>{c}</option>)}</select></Field>
             </div>
             <div className="mt-auto rounded-lg border border-line bg-sunken p-4">
-              <div className="flex justify-between text-[13px] text-ink-3"><span>Customer pays</span><span>final_price = price × qty × (1 − discount)</span></div>
+              <div className="flex justify-between text-[13px] text-ink-3"><span>Customer pays</span><span>price × quantity, minus the discount</span></div>
               <div className="num mt-1 text-[24px] font-semibold">{inr(total, { compact: false, digits: 2 })}</div>
-              {Number(f.discount_pct) > 35 && <div className="mt-1 text-[12.5px] text-warn">Above 35% off, this sale is below the estimated cost (K10).</div>}
+              {Number(f.discount_pct) > 35 && <div className="mt-1 text-[12.5px] text-warn">Above 35% off, this sale is below the estimated cost.</div>}
             </div>
             <button disabled={m.isPending} className="rounded-lg bg-ink py-2.5 text-[14px] font-semibold text-canvas transition-opacity hover:opacity-90 disabled:opacity-50">
               {m.isPending ? "Booking…" : "Book order"}

@@ -27,5 +27,5 @@ export const NAV = [
       { to: "/ask", label: "Ask", icon: MessageSquareText, hint: "Questions in plain language" },
     ],
   },
-  { group: "Trust", items: [{ to: "/data", label: "Data & governance", icon: Database, hint: "Imports, contract, quality" }] },
+  { group: "Trust", items: [{ to: "/data", label: "Data & governance", icon: Database, hint: "New data, checks, history" }] },
 ];

@@ -30,7 +30,7 @@ export const KPIS: Record<string, KpiDef> = {
   K3: {
     id: "K3", name: "Return rate",
     formula: "Returned orders as a share of all orders",
-    meaning: "Share of orders sent back (the full final_price is refunded).",
+    meaning: "Share of orders sent back. The customer gets back everything they paid.",
     decision: "Which sellers, categories or brands to investigate for quality or listing accuracy.",
     baseline: "11.6%",
   },
@@ -38,7 +38,7 @@ export const KPIS: Record<string, KpiDef> = {
     id: "K4", name: "Late deliveries",
     formula: "Orders that arrived late, as a share of all orders that arrived",
     meaning: "Of the orders that reached the customer, how many arrived late. Orders still in transit are excluded.",
-    decision: "Which sellers and cities need a delivery SLA conversation.",
+    decision: "Which sellers and cities need a conversation about delivery times.",
     baseline: "About half of the orders that arrived",
   },
   K5: {
@@ -91,7 +91,7 @@ export const KPIS: Record<string, KpiDef> = {
   K12: {
     id: "K12", name: "Return hotspots",
     formula: "Each brand's return rate within a category, compared with the usual rate; flagged only when the gap is too large to be chance",
-    meaning: "Where returns are significantly above normal — a baseline for a return-propensity model.",
+    meaning: "Where returns are clearly above normal, not by chance.",
     decision: "Which listings and brands to inspect before the next promotion.",
   },
 };
