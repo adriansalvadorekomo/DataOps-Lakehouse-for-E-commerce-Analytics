@@ -176,7 +176,7 @@ def search(session: Session, q: str, limit: int = 6) -> list[dict]:
     like = q.upper() + "%"
     out: list[dict] = []
     for kind, sql in (
-        ("seller", "SELECT seller_id AS id, 'rating ' || current_rating AS hint FROM public.sellers "
+        ("seller", "SELECT seller_id AS id, 'rated ' || current_rating || ' / 5' AS hint FROM public.sellers "
                    "WHERE seller_id LIKE :like ORDER BY length(seller_id), seller_id LIMIT :limit"),
         ("product", "SELECT product_id AS id, brand || ' · ' || category AS hint FROM public.products "
                     "WHERE product_id LIKE :like ORDER BY length(product_id), product_id LIMIT :limit"),
