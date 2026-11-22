@@ -338,7 +338,8 @@ def _write(session: Session, rows: list[dict]) -> None:
     session.execute(insert(OrderItem), [
         {"order_id": oid, "product_id": r["product_id"], "seller_id": r["seller_id"], "quantity": 1,
          "unit_price": r["price"], "discount_pct": r["discount"], "final_price": r["final_price"],
-         "seller_rating_at_sale": r["seller_rating"]}
+         "seller_rating_at_sale": r["seller_rating"], "category": r["category"],
+         "subcategory": r["subcategory"], "brand": r["brand"]}
         for oid, r in zip(order_rows, rows, strict=True)
     ])
 

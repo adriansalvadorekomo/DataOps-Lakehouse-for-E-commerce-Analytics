@@ -128,3 +128,21 @@ def test_partial_window_demotes_revenue_alarms(client):
     assert ids["partial-window"]["severity"] == "act"
     assert ids["revenue-pace"]["severity"] == "info"
     assert ids["revenue-pace"]["title"].startswith("Partial data")
+
+
+def test_category_revenue_follows_the_category_as_sold(client, session):
+    # In the source a product id appears under several categories over time; sales must
+    # keep the category they were sold under, not the product's latest one.
+    from sqlalchemy import text
+
+    _order(client)  # sold while P_TEST is Electronics
+    session.execute(text("UPDATE public.products SET category = 'Home' WHERE product_id = 'P_TEST'"))
+    session.commit()
+    try:
+        cats = {c["category"]: c for c in client.get("/stats/revenue-by-category").json()}
+        assert "Electronics" in cats and "Home" not in cats
+        m = client.get("/stats/margin", params={"days": 30}).json()
+        assert {c["category"] for c in m["by_category"]} == {"Electronics"}
+    finally:
+        session.execute(text("UPDATE public.products SET category = 'Electronics' WHERE product_id = 'P_TEST'"))
+        session.commit()

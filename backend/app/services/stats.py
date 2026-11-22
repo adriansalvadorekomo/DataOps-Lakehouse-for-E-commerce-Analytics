@@ -170,13 +170,13 @@ def revenue_trend(session: Session, days: int = 30) -> list[dict]:
 def revenue_by_category(session: Session) -> list[dict]:
     """Revenue + line counts per product category (all time)."""
     rows = session.execute(
+        # Category AS SOLD (order_items.category): it varies per sale in the source.
         select(
-            Product.category.label("category"),
+            OrderItem.category.label("category"),
             func.coalesce(func.sum(OrderItem.final_price), 0).label("revenue"),
             func.count(OrderItem.order_item_id).label("lines"),
         )
-        .join(OrderItem, OrderItem.product_id == Product.product_id)
-        .group_by(Product.category)
+        .group_by(OrderItem.category)
         .order_by(func.sum(OrderItem.final_price).desc())
     ).all()
     return [
@@ -339,14 +339,13 @@ def category_trend(session: Session, months: int = 12) -> list[dict]:
     rows = session.execute(
         select(
             month.label("month"),
-            Product.category.label("category"),
+            OrderItem.category.label("category"),
             func.coalesce(func.sum(OrderItem.final_price), 0).label("revenue"),
         )
         .join(OrderItem, OrderItem.order_id == Order.order_id)
-        .join(Product, Product.product_id == OrderItem.product_id)
         .where(month.in_(select(recent.c.m)))
-        .group_by(month, Product.category)
-        .order_by(month, Product.category)
+        .group_by(month, OrderItem.category)
+        .order_by(month, OrderItem.category)
     ).all()
     return [
         {"month": r.month.date().isoformat()[:7], "category": r.category, "revenue": float(r.revenue)}

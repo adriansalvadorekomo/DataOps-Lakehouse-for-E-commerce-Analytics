@@ -14,9 +14,11 @@ SELECT
   o.device,
   o.delivery_status,
   oi.product_id,
-  p.category,
-  p.subcategory,
-  p.brand,
+  -- As sold, from the order line: a product id appears under several categories in
+  -- the source, so the product's latest category would misattribute revenue.
+  oi.category,
+  oi.subcategory,
+  oi.brand,
   oi.seller_id,
   oi.quantity,
   oi.unit_price,
@@ -32,6 +34,4 @@ SELECT
     AS estimated_line_margin                  -- K10, ESTIMATED
 FROM ${catalog}.silver.order_items oi
 JOIN ${catalog}.silver.orders o
-  ON o.order_id = oi.order_id
-JOIN ${catalog}.silver.products p
-  ON p.product_id = oi.product_id;
+  ON o.order_id = oi.order_id;

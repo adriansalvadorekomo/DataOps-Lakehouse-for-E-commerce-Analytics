@@ -185,6 +185,10 @@ class OrderItem(Base):
     )
     final_price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     seller_rating_at_sale: Mapped[float] = mapped_column(Numeric(2, 1), nullable=False)
+    #: As sold (011_sale_attributes.sql): in the source these vary per sale, not per product.
+    category: Mapped[str | None] = mapped_column(Text, nullable=True)
+    subcategory: Mapped[str | None] = mapped_column(Text, nullable=True)
+    brand: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
         CheckConstraint("quantity >= 1", name="order_items_quantity_min"),
@@ -370,4 +374,29 @@ class GovernanceRun(Base):
         CheckConstraint(
             "trigger IN ('api', 'cli', 'import', 'ci')", name="governance_runs_trigger_enum"
         ),
+    )
+
+
+class AiInteraction(Base):
+    """One assistant answer and its human rating (010_ai_feedback.sql)."""
+
+    __tablename__ = "ai_interactions"
+
+    interaction_id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    mode: Mapped[str] = mapped_column(Text, nullable=False)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    intent: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sources: Mapped[list] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    latency_ms: Mapped[int | None] = mapped_column(nullable=True)
+    rating: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("mode IN ('data', 'docs')", name="ai_interactions_mode_enum"),
+        CheckConstraint("rating IS NULL OR rating IN (-1, 1)", name="ai_interactions_rating_enum"),
     )

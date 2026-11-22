@@ -101,6 +101,10 @@ def create_order(session: Session, payload, actor: str = "api") -> Order:
                 discount_pct=disc,
                 final_price=final,
                 seller_rating_at_sale=seller.current_rating,
+                # As sold: the product's category/brand at the time of this sale.
+                category=product.category,
+                subcategory=product.subcategory,
+                brand=product.brand,
             )
         )
         _decrement_stock(session, product_id=line.product_id, qty=line.quantity, on=today)

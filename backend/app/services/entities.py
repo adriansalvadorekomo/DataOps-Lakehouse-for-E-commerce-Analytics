@@ -71,13 +71,14 @@ def seller_profile(session: Session, seller_id: str) -> dict | None:
     p = {"id": seller_id}
     where = "oi.seller_id = :id"
     top = _rows(session, """
-        SELECT oi.product_id, p.category, p.brand, COUNT(*) AS lines, SUM(oi.final_price) AS revenue
-        FROM public.order_items oi JOIN public.products p ON p.product_id = oi.product_id
-        WHERE oi.seller_id = :id GROUP BY 1, 2, 3 ORDER BY revenue DESC LIMIT 5
+        SELECT oi.product_id, MODE() WITHIN GROUP (ORDER BY oi.category) AS category,
+               MODE() WITHIN GROUP (ORDER BY oi.brand) AS brand, COUNT(*) AS lines, SUM(oi.final_price) AS revenue
+        FROM public.order_items oi
+        WHERE oi.seller_id = :id GROUP BY 1 ORDER BY revenue DESC LIMIT 5
     """, p)
     cats = _rows(session, """
-        SELECT p.category, SUM(oi.final_price) AS revenue
-        FROM public.order_items oi JOIN public.products p ON p.product_id = oi.product_id
+        SELECT oi.category, SUM(oi.final_price) AS revenue
+        FROM public.order_items oi
         WHERE oi.seller_id = :id GROUP BY 1 ORDER BY revenue DESC
     """, p)
     return {
@@ -152,9 +153,8 @@ def customer_profile(session: Session, customer_id: str) -> dict | None:
             floor = max(gap, 7)
             segment = "at_risk" if days_since > 2 * floor else "cooling" if days_since > floor else "active"
     cats = _rows(session, """
-        SELECT p.category, SUM(oi.final_price) AS revenue FROM public.orders o
+        SELECT oi.category, SUM(oi.final_price) AS revenue FROM public.orders o
         JOIN public.order_items oi ON oi.order_id = o.order_id
-        JOIN public.products p ON p.product_id = oi.product_id
         WHERE o.customer_id = :id GROUP BY 1 ORDER BY revenue DESC
     """, p)
     c = cust[0]

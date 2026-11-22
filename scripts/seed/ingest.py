@@ -231,10 +231,10 @@ def normalize() -> None:
         """
         INSERT INTO public.order_items
           (order_id, product_id, seller_id, quantity, unit_price,
-           discount_pct, final_price, seller_rating_at_sale)
+           discount_pct, final_price, seller_rating_at_sale, category, subcategory, brand)
         SELECT
           row_idx, product_id, seller_id, 1, price,
-          discount, final_price, seller_rating
+          discount, final_price, seller_rating, category, subcategory, brand
         FROM staging.purchases
         ORDER BY row_idx;
         """,

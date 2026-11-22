@@ -91,14 +91,13 @@ def revenue_monthly(session: Session, months: int = 24) -> list[dict]:
 def category_comparison(session: Session, window: Window) -> list[dict]:
     """Revenue per category in the current vs the previous window (K5)."""
     rows = _rows(session, """
-        SELECT p.category,
+        SELECT oi.category,
                SUM(CASE WHEN o.order_date BETWEEN :start AND :end THEN oi.final_price ELSE 0 END) AS current,
                SUM(CASE WHEN o.order_date BETWEEN :prev_start AND :prev_end THEN oi.final_price ELSE 0 END) AS previous
         FROM public.orders o
         JOIN public.order_items oi ON oi.order_id = o.order_id
-        JOIN public.products p ON p.product_id = oi.product_id
         WHERE o.order_date BETWEEN :prev_start AND :end
-        GROUP BY p.category ORDER BY current DESC
+        GROUP BY oi.category ORDER BY current DESC
     """, window.params)
     total = sum(_f(r["current"]) for r in rows) or 1.0
     out = []
@@ -122,10 +121,9 @@ def margin(session: Session, window: Window | None = None) -> dict:
         WHERE {where} GROUP BY 1 ORDER BY 1
     """, params)
     by_category = _rows(session, f"""
-        SELECT p.category, SUM(oi.final_price) AS revenue, {est} AS est_margin
+        SELECT oi.category, SUM(oi.final_price) AS revenue, {est} AS est_margin
         FROM public.orders o
         JOIN public.order_items oi ON oi.order_id = o.order_id
-        JOIN public.products p ON p.product_id = oi.product_id
         WHERE {where} GROUP BY 1 ORDER BY revenue DESC
     """, params)
 
@@ -239,14 +237,13 @@ def return_hotspots(session: Session, window: Window | None = None, limit: int =
     min_orders = max(20, math.ceil(orders * 0.001))
     params.update({"min_orders": min_orders})
     rows = _rows(session, f"""
-        SELECT p.category, p.brand, COUNT(DISTINCT o.order_id) AS orders,
+        SELECT oi.category, oi.brand, COUNT(DISTINCT o.order_id) AS orders,
                SUM(CASE WHEN o.delivery_status = 'RETURNED' THEN 1 ELSE 0 END) AS returns,
                SUM(CASE WHEN o.delivery_status = 'RETURNED' THEN oi.final_price ELSE 0 END) AS refunded
         FROM public.orders o
         JOIN public.order_items oi ON oi.order_id = o.order_id
-        JOIN public.products p ON p.product_id = oi.product_id
         WHERE {where}
-        GROUP BY p.category, p.brand HAVING COUNT(DISTINCT o.order_id) >= :min_orders
+        GROUP BY oi.category, oi.brand HAVING COUNT(DISTINCT o.order_id) >= :min_orders
     """, params)
     out = []
     for r in rows:
