@@ -42,15 +42,36 @@ def _signal(**kw) -> dict:
     return kw
 
 
+_IMPORT_RULES = {
+    "R0 columns": "Missing columns", "R1 required": "Missing values", "R1 type": "Wrong format",
+    "R4 final_price": "Price doesn't add up", "R5 enum": "Unknown value", "R6 range": "Out of range",
+    "R7 date": "Impossible date",
+}
+
+
+def _plain_rule(name: str) -> str:
+    n = name.lower()
+    for key, label in (("null", "Missing identifiers"), ("unique", "Duplicates"), ("→", "Broken links"),
+                       ("final_price", "Price doesn't add up"), ("enum", "Unknown values"),
+                       ("range", "Out-of-range values"), ("date", "Impossible dates")):
+        if key in n:
+            return label
+    return name
+
+
 def _pct(x: float | None) -> str:
     return "n/a" if x is None else f"{x * 100:.1f}%"
 
 
 def _inr(x: float) -> str:
-    if abs(x) >= 1e7:
-        return f"₹{x / 1e7:.2f} Cr"
-    if abs(x) >= 1e5:
-        return f"₹{x / 1e5:.2f} L"
+    """International units for prose: ₹9.94B · ₹419.0M · ₹959K · ₹9,939."""
+    a = abs(x)
+    if a >= 1e9:
+        return f"₹{x / 1e9:.2f}B"
+    if a >= 1e6:
+        return f"₹{x / 1e6:.1f}M"
+    if a >= 1e5:
+        return f"₹{x / 1e3:.0f}K"
     return f"₹{x:,.0f}"
 
 
@@ -96,7 +117,7 @@ def revenue_pace(session: Session, w: Window) -> list[dict]:
                 title=f"Actual revenue is {abs(gap) * 100:.1f}% {'below' if gap < 0 else 'above'} the forecast",
                 metric=actual, baseline=fc, delta=gap, unit="inr",
                 evidence=[f"{len(pairs)} forecasted days now have actuals",
-                          f"Actual {_inr(actual)} vs forecast {_inr(fc)} (Random Forest)"],
+                          f"Actual {_inr(actual)} against an expected {_inr(fc)}"],
                 next_step="Check Forecast; refresh the model if the gap persists.",
                 link="/forecast", magnitude=abs(gap),
             ))
@@ -148,7 +169,7 @@ def discount_efficiency(session: Session, w: Window) -> list[dict]:
         metric=b["est_margin"], baseline=0.0, unit="inr",
         evidence=[f"Estimated margin in the 50–70% band: {_inr(b['est_margin'])}",
                   f"Break-even discount under the cost assumption: {m['break_even_discount_pct']}%",
-                  "Estimated: unit cost = 0.65 × list price (no cost of goods in the source)"],
+                  "Estimated: assumes goods cost 65% of their list price (real costs are not recorded)"],
         next_step="Cap seller-funded discounts near the break-even level, or confirm real costs first.",
         link="/revenue#margin", magnitude=share,
     )]
@@ -174,11 +195,13 @@ def seller_outliers(session: Session, w: Window) -> list[dict]:
         out.append(_signal(
             id=sig_id, domain="sellers", kpi=kpi,
             severity="act" if share >= 0.05 else "watch",
-            title=f"{len(flagged)} sellers {label}",
+            title=(f"{len(flagged)} sellers {label}" if len(flagged) > 1
+                   else f"Seller {flagged[0]['seller_id']} {label.replace('deliver ', 'delivers ').replace('get ', 'gets ')}"),
             metric=len(flagged), baseline=peers[p90_key], unit="count",
-            evidence=[f"Peer median {_pct(peers[p50_key])}, 90th percentile {_pct(peers[p90_key])} "
-                      f"(sellers with ≥ {peers['min_orders']} orders); flagged only when also "
-                      "significantly above the pooled peer rate (z ≥ 2)",
+            evidence=[f"A typical seller is at {_pct(peers[p50_key])}; these sellers are above "
+                      f"{_pct(peers[p90_key])}, worse than 9 in 10 of their peers",
+                      f"Only sellers with at least {peers['min_orders']} orders are compared, and only "
+                      "gaps too large to be chance are flagged",
                       f"They carry {_pct(share)} of revenue in this window"]
             + [f"{s['seller_id']}: {_pct(s[rate_key])} on {s['orders']} orders" for s in top],
             next_step=("Review delivery SLAs with these sellers, starting with the largest."
@@ -264,12 +287,13 @@ def return_hotspots(session: Session, w: Window) -> list[dict]:
     refunded = sum(p["refunded"] for p in hot)
     return [_signal(
         id="return-hotspots", domain="returns", kpi="K12", severity="watch",
-        title=f"{len(hot)} category–brand pairs return significantly more than average",
+        title=(f"{len(hot)} brands get returned far more often than usual" if len(hot) > 1
+               else f"{hot[0]['brand']} in {hot[0]['category']} gets returned far more often than usual"),
         metric=len(hot), baseline=h["baseline_return_rate"], unit="count",
-        evidence=[f"Baseline return rate {_pct(h['baseline_return_rate'])}; "
-                  f"pairs need ≥ {h['min_orders']} orders and z ≥ 2",
+        evidence=[f"Normally {_pct(h['baseline_return_rate'])} of orders come back; these brands are "
+                  "above that by more than chance would explain",
                   f"Refunded in this window: {_inr(refunded)}"]
-        + [f"{p['brand']} · {p['category']}: {_pct(p['return_rate'])} ({p['lift']:.2f}× baseline)"
+        + [f"{p['brand']} in {p['category']}: {_pct(p['return_rate'])} returned ({p['lift']:.1f}× the usual rate)"
            for p in hot[:3]],
         next_step="Inspect listings and quality for these brands before the next promotion.",
         link="/inventory#returns", magnitude=refunded,
@@ -289,7 +313,7 @@ def churn_risk(session: Session, w: Window) -> list[dict]:
         title=f"{risk['customers']:,} repeat customers have gone quiet",
         metric=risk["customers"], unit="count", delta=risk["revenue_share"],
         evidence=[f"They brought {_inr(risk['revenue'])} ({_pct(risk['revenue_share'])} of lifetime revenue)",
-                  "Rule: no order for more than twice their own usual gap between orders"]
+                  "Quiet for more than twice their usual time between orders"]
         + [f"{t['customer_id']}: {t['days_since']} days quiet (usual gap {t['avg_gap_days']} days)"
            for t in c["top_at_risk"]],
         next_step="Target them with a win-back offer, highest lifetime value first.",
@@ -304,10 +328,10 @@ def data_trust(session: Session, w: Window) -> list[dict]:
     failed = [c for c in checks if c["violations"]]
     if failed:
         out.append(_signal(
-            id="dq-violations", domain="data", kpi="R1–R7", severity="act",
-            title=f"{len(failed)} data-quality rule{'s' if len(failed) > 1 else ''} found bad records",
+            id="dq-violations", domain="data", kpi="Data checks", severity="act",
+            title=f"{len(failed)} data check{'s' if len(failed) > 1 else ''} found records to fix",
             metric=sum(c["violations"] for c in failed), unit="count",
-            evidence=[f"{c['rule']}: {c['violations']:,}" for c in failed[:4]],
+            evidence=[f"{_plain_rule(c['rule'])}: {c['violations']:,} records" for c in failed[:4]],
             next_step="Numbers touching these records may be wrong; fix the source before reporting.",
             link="/data#quality", magnitude=1.0,
         ))
@@ -327,7 +351,7 @@ def data_trust(session: Session, w: Window) -> list[dict]:
             severity="watch" if lag > 7 else "info",
             title=f"The forecast is {lag} days behind the data",
             metric=lag, unit="days",
-            evidence=[f"Forecast trained on data up to {fc_asof.isoformat()}",
+            evidence=[f"The forecast was last refreshed with sales up to {fc_asof.isoformat()}",
                       f"Books now run to {w.as_of.isoformat()}"],
             next_step="Refresh the forecast so it learns from the new days.",
             link="/forecast", magnitude=min(lag / 30, 1.0),
@@ -337,21 +361,21 @@ def data_trust(session: Session, w: Window) -> list[dict]:
     run = latest_run(session)
     if run is None:
         out.append(_signal(
-            id="governance-none", domain="data", kpi="Governance", severity="info",
+            id="governance-none", domain="data", kpi="Data checks", severity="info",
             title="The data contract has not been validated yet",
-            evidence=["Great Expectations validates the books contract (R1–R7 + H1) on demand and after "
-                      "every import"],
+            evidence=["Automatic checks confirm the records are complete and consistent; they run on "
+                      "demand and after every import"],
             next_step="Run a governance check from the Data page.", link="/data#governance",
             magnitude=0.1,
         ))
     elif run.status in ("failed", "error"):
         failed = [r for r in (run.results or []) if not r["success"] and r["severity"] == "critical"]
         out.append(_signal(
-            id=f"governance-failed-{run.run_id}", domain="data", kpi="Governance", severity="act",
+            id=f"governance-failed-{run.run_id}", domain="data", kpi="Data checks", severity="act",
             title=(f"{run.critical_failures} critical data-contract expectation"
                    f"{'s' if run.critical_failures != 1 else ''} failed" if run.status == "failed"
                    else "The last governance run could not complete"),
-            evidence=[f"{r['rule']} · {r['suite']}: {r['why']}" for r in failed[:4]] or [run.error or ""],
+            evidence=[r["why"] for r in failed[:4]] or ["The check could not finish; try again later"],
             next_step="Numbers built on these records may be wrong; fix them at the source.",
             link="/data#governance", magnitude=1.0,
         ))
@@ -360,10 +384,11 @@ def data_trust(session: Session, w: Window) -> list[dict]:
     batch = latest_batch(session)
     if batch and batch["rows_rejected"]:
         out.append(_signal(
-            id=f"import-rejections-{batch['batch_id']}", domain="data", kpi="Import", severity="watch",
+            id=f"import-rejections-{batch['batch_id']}", domain="data", kpi="New data", severity="watch",
             title=f"The last import rejected {batch['rows_rejected']:,} of {batch['rows_total']:,} rows",
             metric=batch["rows_rejected"], baseline=batch["rows_total"], unit="count",
-            evidence=[f"{rule}: {n:,}" for rule, n in (batch["rejections_by_rule"] or {}).items()][:4],
+            evidence=[f"{_IMPORT_RULES.get(rule, rule)}: {n:,} rows"
+                      for rule, n in (batch["rejections_by_rule"] or {}).items()][:4],
             next_step="Download the rejection report, fix the rows at the source and re-upload.",
             link=f"/data/imports/{batch['batch_id']}", magnitude=0.5,
         ))
@@ -420,7 +445,7 @@ def _brief_all(session: Session, days: int) -> dict:
                 sig["title"] = f"Partial data · {sig['title']}"
                 sig["evidence"] = ["Compare with caution: the current window looks incomplete"] + sig["evidence"]
         signals.append(_signal(
-            id="partial-window", domain="data", kpi="Completeness", severity="act",
+            id="partial-window", domain="data", kpi="Data checks", severity="act",
             title=f"The last {w.days} days hold only {ratio * 100:.0f}% of the previous period's orders",
             metric=ratio, baseline=1.0, unit=None,
             evidence=["A drop this sharp usually means the latest days are not fully loaded "

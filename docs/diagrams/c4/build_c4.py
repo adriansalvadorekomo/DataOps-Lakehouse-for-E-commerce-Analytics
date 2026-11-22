@@ -368,8 +368,8 @@ def container(theme: str) -> str:
            icons=("react", "gsap", "nginx"))
     c.card(540, 455, 420, 195, t["ops"], "CONTAINER · REST API", "Backend API",
            "FastAPI · SQLAlchemy · Pydantic",
-           ["/insights /stats /orders /imports", "/governance /ai · live brief, cached",
-            "on a data version · 53 pytest tests"],
+           ["/insights /stats /orders /imports /ai", "logs every answer + its 👍/👎 rating",
+            "brief cached on a data version · 59 tests"],
            icons=("fastapi", "python"))
     c.card(80, 720, 380, 180, t["ops"], "CONTAINER · BATCH JOB", "Revenue forecast",
            "scikit-learn Random Forest · Prophet",
@@ -381,8 +381,8 @@ def container(theme: str) -> str:
             "runs stored; failures hit the brief"],
            icons=("contract", "pandas"), title_size=20)
     c.card(540, 970, 420, 180, t["ops"], "DATABASE · SYSTEM OF RECORD", "PostgreSQL 16",
-           "9 migrations · CHECK + FK",
-           ["6 core tables · 1,000,000 orders", "+ imports, governance runs, audit",
+           "11 migrations · CHECK + FK",
+           ["6 core tables · 1,000,000 orders", "+ imports, contract runs, answer log",
             "final_price CHECK ±₹5.00"],
            icons=("postgresql",), shape="cylinder")
 
@@ -391,7 +391,7 @@ def container(theme: str) -> str:
            "databricks-gpt-oss-120b", ["Answers only from the", "retrieved doc chunks"],
            icons=("databricks",), title_size=19.5)
     c.card(1410, 490, 260, 155, t["ext"], "EXTERNAL · NL-TO-SQL", "Genie space",
-           "over the 4 Gold marts", ["Writes the SQL itself;", "returns query + rows"],
+           "over the 4 Gold marts", ["Analyst tool in the", "workspace; not in the app"],
            icons=("databricks",), title_size=19.5)
     c.card(1720, 455, 290, 195, t["ana"], "CONTAINER · BI", "AI/BI dashboards",
            "Databricks SQL warehouse",
@@ -455,7 +455,7 @@ def container(theme: str) -> str:
 
     # API → AI services
     c.arrow([(960, 568), (1090, 568)])
-    c.label(1025, 528, ["/ai/ask-docs", "/ai/ask-genie"], tech="REST")
+    c.label(1025, 528, ["document", "answers"], tech="REST")
 
     # medallion flow
     for x0, x1, col in ((1275, 1325, t["bronze"]), (1525, 1575, t["silver"]),
@@ -516,7 +516,7 @@ def container(theme: str) -> str:
            ("₹9.94B", "Gold revenue, ±₹1,000"),
            ("75", "GE expectations (46 + 29)"),
            ("10", "CI jobs on every PR"),
-           ("89", "tests: API, CD, lakehouse, web"),
+           ("96", "tests: API, CD, lakehouse, web"),
            ("3.4%", "MAPE, 30-day forecast")]
     c.text(60, 1680, "VALIDATED AT 1M ROWS", 11.5, 500, t["faint"], MONO, spacing=1.4)
     n = len(res)
@@ -586,8 +586,8 @@ def context(theme: str) -> str:
     # externals (right)
     ext = [(335, "Marketplace data", "CSV · 1M-row history + new exports", ["Seed: 24 months of orders;", "exports: incremental imports"],
             ("csv",), ["Seeds the books, lands in", "Bronze; exports go through GE"], "file upload", "in"),
-           (645, "Databricks AI services", "Genie · Foundation Model API", ["NL-to-SQL over Gold;", "LLM for document answers"],
-            ("databricks",), ["Asks Genie and the", "FM API (grounded)"], "REST", "out"),
+           (645, "Databricks AI services", "Foundation Model API · Genie", ["LLM for document answers;", "Genie for analysts"],
+            ("databricks",), ["Answers questions on", "attached documents"], "REST", "out"),
            (955, "Hugging Face Hub", "all-MiniLM-L6-v2", ["Sentence-embedding", "model weights"],
             ("huggingface",), ["Downloads the", "embedding model"], "HTTPS", "out")]
     for cy, name, tech, desc, icons, rel, rtech, direction in ext:

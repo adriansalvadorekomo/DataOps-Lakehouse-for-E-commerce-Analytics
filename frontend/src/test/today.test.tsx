@@ -42,6 +42,6 @@ describe("Today brief", () => {
     expect(screen.getByText("Act now")).toBeInTheDocument();
     expect(screen.getByText("Reorder these first.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open Inventory/ })).toHaveAttribute("href", "/inventory#reorder");
-    expect(screen.getByText("29/29 expectations met")).toBeInTheDocument();
+    expect(screen.getByText("29 of 29 passed")).toBeInTheDocument();
   });
 });

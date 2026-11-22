@@ -52,7 +52,7 @@ The application's only read of Gold goes through Databricks Genie (`/ai/ask-geni
 
 ## Operational plane
 
-**PostgreSQL 16 — the books.** Six core tables (customers, sellers, products, inventory, orders, order_items; see [business-model.md §2](business-model.md#2-the-data)) plus `audit_log`, `revenue_forecasts`, `documents`/`document_chunks`, `import_batches`/`import_rejections` and `governance_runs`. Nine SQL migrations in `database/migrations/` (replayed by Alembic for the API). The database itself enforces the money invariant (CHECK, ±₹5.00), the lifecycle values, ranges and the foreign-key graph.
+**PostgreSQL 16 — the books.** Six core tables (customers, sellers, products, inventory, orders, order_items; see [business-model.md §2](business-model.md#2-the-data)) plus `audit_log`, `revenue_forecasts`, `documents`/`document_chunks`, `import_batches`/`import_rejections`, `governance_runs` and `ai_interactions` (answers + ratings). Eleven SQL migrations in `database/migrations/` (replayed by Alembic for the API). The database itself enforces the money invariant (CHECK, ±₹5.00), the lifecycle values, ranges and the foreign-key graph.
 
 **FastAPI — the API** (`backend/app`).
 
@@ -65,7 +65,7 @@ The application's only read of Gold goes through Databricks Genie (`/ai/ask-geni
 | New data | `services/imports.py` | CSV → Great Expectations gate → idempotent append (`source_hash`) |
 | Governance | `governance/` | Contracts as code, engine, stored runs, CLI |
 | Forecast | `services/forecast.py`, `jobs/refresh_forecast.py` | Random Forest (served) + Prophet (second opinion) |
-| AI | `services/assistant.py`, `rag.py`, `genie.py` | Deterministic intents; document answers via the Databricks FM API; Genie over Gold |
+| Ask | `services/assistant.py`, `rag.py`, `api/assistant.py` | Business-language answers (deterministic intents); document answers via the Databricks FM API; every answer logged with its 👍/👎 rating |
 
 **Web — the Control Tower** (`frontend/`): React 19, Vite, TanStack Query, Radix, GSAP; served by nginx, which proxies `/api` to the API. One page per role question; see [product.md](product.md).
 
@@ -105,9 +105,9 @@ UC volume (CSV) ─COPY INTO─► Bronze ──► Silver ──► DQ gate R1�
 | Layer | Tables | Contract |
 |---|---|---|
 | **Bronze** | `bronze.raw_purchases` | Source columns verbatim + `_ingest_ts`, `_source`; append-only; `COPY INTO` tracks files, so a re-run adds 0 rows. Designed production path: JDBC snapshot from PostgreSQL with a `purchase_date` watermark |
-| **Silver** | six entity twins | Typed, trimmed, enums normalised; every business rule defined exactly once (e.g. `home_city`) |
+| **Silver** | six entity twins | Typed, trimmed, enums normalised; every business rule defined exactly once (e.g. `home_city`); order lines keep category, subcategory and brand as sold |
 | **DQ gate** | — | R1–R9 (`lakehouse/src/quality/rules.py`); one violation fails the task, so Gold never builds on bad data and the last good Gold stays |
-| **Gold** | `fact_sales` (one row per line, with `discount_band` and `estimated_line_margin`), `sales_daily`, `customer_360` (lifetime value, Pareto tier), `inventory_kpis` (stock-critical flag), `dim_customer`, `dim_product`, `dim_date` | Built from Silver only (CI `sql-parse` enforces it); revenue reconciled to the source |
+| **Gold** | `fact_sales` (one row per line, with the category / subcategory / brand **as sold**, `discount_band` and `estimated_line_margin`), `sales_daily`, `customer_360` (lifetime value, Pareto tier), `inventory_kpis` (stock-critical flag), `dim_customer`, `dim_product`, `dim_date` | Built from Silver only (CI `sql-parse` enforces it); revenue reconciled to the source |
 
 The job (`lakehouse/workflows/smart_erp_job.json`) runs `bronze_ingest → silver_build → dq_gate → gold_build → sql_refresh`. Its logic is pure Python under `lakehouse/src/`, tested without a cluster, and `lakehouse/local_run.py` runs the same path on sample data.
 

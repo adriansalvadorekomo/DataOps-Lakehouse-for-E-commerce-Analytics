@@ -7,7 +7,7 @@ import { api, type SellerRow } from "@/lib/api";
 import { inr, int, pct } from "@/lib/format";
 import { usePeriod, useParam } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
-import { ChartFrame } from "@/components/data/ChartFrame";
+import { ChartFrame, ChartLegend } from "@/components/data/ChartFrame";
 import { DataTable } from "@/components/data/DataTable";
 import { KpiInfo } from "@/components/data/KpiInfo";
 import { Tag } from "@/components/data/Badges";
@@ -68,7 +68,7 @@ export function Sellers() {
       cell: (c) => (
         <div className="flex gap-1">
           {c.row.original.flags.map((f) => <Tag key={f} tone="signal">{f === "late_deliveries" ? "Late" : "Returns"}</Tag>)}
-          {!c.row.original.eligible && <Tag>low volume</Tag>}
+          {!c.row.original.eligible && <Tag>too few orders</Tag>}
         </div>
       ),
     },
@@ -87,9 +87,9 @@ export function Sellers() {
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { l: "Active sellers", v: card ? int(card.sellers_total) : "—" },
-          { l: "With enough volume to compare", v: card ? `${int(card.peers.eligible_sellers)} (≥ ${card.peers.min_orders} orders)` : "—" },
-          { l: "Peer late-delivery rate", v: card ? `${pct(card.peers.delayed_p50)} median · ${pct(card.peers.delayed_p90)} p90` : "—" },
-          { l: "Flagged against peers", v: card ? int(flagged.length) : "—", signal: true },
+          { l: `With enough orders to compare (${card?.peers.min_orders ?? "—"}+)`, v: card ? int(card.peers.eligible_sellers) : "—" },
+          { l: "A typical seller delivers late", v: card ? pct(card.peers.delayed_p50) : "—" },
+          { l: "Flagged: far worse than their peers", v: card ? int(flagged.length) : "—", signal: true },
         ].map((k) => (
           <div key={k.l} className="panel reveal p-5">
             <div className="text-[13px] text-ink-3">{k.l}</div>
@@ -101,10 +101,16 @@ export function Sellers() {
       <ChartFrame
         className="mb-8"
         title="Delivery × returns, sellers with enough volume"
-        question="Each dot is a seller, sized by revenue. Top-right of the dashed 90th-percentile lines is where to look first."
+        question="Each dot is a seller, sized by revenue. The top-right corner — late often and returned often — is where to look first."
         kpiId="K7"
       >
         {card ? (
+          <>
+          <ChartLegend items={[
+            { label: "Seller within the normal range", color: "var(--ink-3)", shape: "dot" },
+            { label: "Flagged: far worse than their peers", color: "var(--signal)", shape: "dot" },
+            { label: "Worse than 9 in 10 sellers beyond this line", color: "var(--signal)", shape: "dashed" },
+          ]} />
           <ResponsiveContainer width="100%" height={340}>
             <ScatterChart margin={{ left: 8, right: 16, top: 8, bottom: 8 }}>
               <CartesianGrid />
@@ -120,12 +126,13 @@ export function Sellers() {
                 onClick={(d: { payload?: SellerRow }) => d.payload && navigate(`/sellers/${d.payload.seller_id}`)} />
             </ScatterChart>
           </ResponsiveContainer>
+          </>
         ) : <Skeleton className="h-[340px]" />}
       </ChartFrame>
 
       <SectionTitle
         title="Scorecard"
-        note="A seller is flagged when their rate is above the peer 90th percentile AND significantly above the pooled peer rate (z ≥ 2). Low-volume sellers are shown but never flagged. Short windows have few orders per seller: use 90D or 1Y for a sturdier read."
+        note="A seller is flagged when they do worse than 9 in 10 of their peers and the gap is too large to be chance. Sellers with too few orders are shown but never flagged. Short windows hold few orders per seller: 90D or 1Y gives a sturdier read."
         right={
           <div className="flex flex-wrap items-center gap-1.5">
             <KpiInfo id="K7" />

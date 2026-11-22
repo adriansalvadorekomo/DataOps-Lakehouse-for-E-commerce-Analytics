@@ -29,7 +29,7 @@ The Control Tower turns the books into a short, ranked **morning brief**. Every 
 | Fulfillment ops | Are deliveries on time? What is stuck? | **Fulfillment** | Which carriers/cities to escalate; which orders to close |
 | Category / inventory | What runs out first? What comes back? | **Inventory** | What to reorder, delist, or inspect |
 | Planning | What revenue should we expect next? | **Forecast** | Stock and staffing plans |
-| Anyone | A question in plain language | **Ask** | — (answers always cite their source) |
+| Anyone | A question in plain language | **Ask** | — (answers say what they are based on; 👍/👎 ratings are kept) |
 | Data owner | Can I trust these numbers? How does new data get in? | **Data & governance** | Whether to report today; what to fix at the source |
 
 ## 3. The signals in the brief
@@ -89,13 +89,24 @@ The lakehouse keeps its own fail-fast gate (R1–R9 in Spark, before Gold builds
 
 GE runs with usage analytics disabled; no data or metadata leaves the process.
 
-## 6. Ask: three grounded answer engines
+## 6. Ask: plain-language answers, rated by the people who use them
 
-| Mode | Grounded in | How it avoids inventing |
+Ask works like a chat (in the spirit of Claude): one prompt box, documents attached *inside* it with the paperclip (or dropped on it), Enter to send, a stop button while it works.
+
+**Answers arrive as a briefing, not a sentence.** Each business answer is a short report card, the way an executive assistant would present it: the report's title and the date the figures run to, the finding as a headline, the key figures, **a visual chosen for the question** (a trend for revenue and basket size, a ranking for cities, sellers and stock, a split for categories and data checks, a curve for customer concentration, revenue and estimated profit by discount, the forecast against actuals, a status stepper for an order), the numbers behind it on request, *what this means*, a button to the page where you act on it, and the natural next questions. The report layer lives in `backend/app/services/reports.py`.
+
+Answers use business language — no table, field, model or API names — and international units (₹9.94B, not ₹994 Cr). They say what they are **based on** in plain words ("All orders to date", "Seller scorecard", "return-policy.pdf · passage 2").
+
+| Answer from | Grounded in | How it avoids inventing |
 |---|---|---|
-| **The books** (`/ai/ask`) | Live PostgreSQL | Deterministic intent matching, no LLM; unknown questions get "I won't guess" and the list of what it can answer |
-| **Our documents** (`/ai/ask-docs`) | Attached PDFs / notes | Local MiniLM retrieval; the Databricks Foundation Model API may answer only from the retrieved passages, which are cited |
-| **Gold tables** (`/ai/ask-genie`) | Databricks Genie over the 4 Gold marts | Returns the generated SQL and the rows, so every answer is checkable; needs `GENIE_SPACE_ID` |
+| **Business data** | The marketplace's live records | Deterministic question matching, no language model; a question it cannot answer gets "I won't guess" and what it *can* answer |
+| **Our documents** | Attached policies, contracts, notes | Local retrieval picks the relevant passages; the language model (Databricks Foundation Model API) may answer only from them |
+
+**Feedback for later learning.** Every answer is stored with its question, mode and what it was based on (`ai_interactions`). Users rate it 👍 or 👎; a 👎 asks *"What would have been more useful?"*. Ratings can be changed or cleared. `GET /ai/interactions?rated=true` exports the question / answer / rating / comment dataset — the preference data a future reward model (reinforcement learning from human feedback) will learn from. `GET /ai/feedback/summary` shows helpful vs not helpful by question type.
+
+**Working state.** While an answer is prepared, a dot-matrix glyph lights up and a shimmering status line moves through the steps ("Reading the order book…", "Comparing periods…") with the elapsed time — inspired by Claude Code. Answers then appear word by word. All of it stops under `prefers-reduced-motion`.
+
+Databricks Genie (SQL over Gold) is deliberately **not** part of the product: business users want answers, not SQL. It stays an analyst tool inside the Databricks workspace.
 
 ## 7. Design choices that serve the user
 
@@ -117,6 +128,6 @@ GE runs with usage analytics disabled; no data or metadata leaves the process.
 | Orders | `GET/POST /orders` · `GET /orders/{id}` · `PATCH /orders/{id}/status` |
 | New data | `POST /imports` · `GET /imports` · `GET /imports/{id}` · `GET /imports/template` · `GET /imports/rules` |
 | Governance | `GET /governance/contract` · `GET /governance/runs` · `GET /governance/runs/latest` · `POST /governance/runs` |
-| Ask & documents | `POST /ai/ask` · `/ai/ask-docs` · `/ai/ask-genie` · `/documents` |
+| Ask & documents | `POST /ai/ask` · `/ai/ask-docs` · `POST /ai/interactions/{id}/feedback` · `GET /ai/interactions` · `GET /ai/feedback/summary` · `/documents` |
 
 Interactive docs: `http://localhost:8000/docs` when the API runs.

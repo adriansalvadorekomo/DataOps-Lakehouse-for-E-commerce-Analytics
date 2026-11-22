@@ -7,8 +7,9 @@ import { api } from "@/lib/api";
 import { date, delta, inr, int, month, pct, pts } from "@/lib/format";
 import { usePeriod } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
-import { ChartFrame, ChartTooltip } from "@/components/data/ChartFrame";
+import { ChartFrame, ChartLegend, ChartTooltip } from "@/components/data/ChartFrame";
 import { DotBar } from "@/components/data/DotMatrix";
+import { KpiInfo } from "@/components/data/KpiInfo";
 import { KpiTile, type Trend } from "@/components/data/KpiTile";
 import { PageHeader, SectionTitle } from "@/components/data/PageHeader";
 import { ErrorState, Skeleton } from "@/components/data/States";
@@ -70,7 +71,12 @@ export function Revenue() {
           table={{ columns: ["Date", "This window", "Previous window"], rows: overlay.map((r) => [date(r.date), inr(r.current), inr(r.previous)]) }}
         >
           {daily.isLoading ? <Skeleton className="h-[280px]" /> : (
-            <ResponsiveContainer width="100%" height={280}>
+            <>
+            <ChartLegend items={[
+              { label: `Last ${days} days`, color: "var(--ink)", shape: "line" },
+              { label: `The ${days} days before`, color: "var(--ink-3)", shape: "dashed" },
+            ]} />
+            <ResponsiveContainer width="100%" height={256}>
               <AreaChart data={overlay} margin={{ left: 8, right: 8, top: 8 }}>
                 <defs>
                   <linearGradient id="cur" x1="0" x2="0" y1="0" y2="1">
@@ -86,6 +92,7 @@ export function Revenue() {
                 <Area type="monotone" dataKey="previous" name="Previous window" stroke="var(--ink-3)" strokeDasharray="4 4" fill="transparent" />
               </AreaChart>
             </ResponsiveContainer>
+            </>
           )}
         </ChartFrame>
 
@@ -96,7 +103,12 @@ export function Revenue() {
           table={{ columns: ["Month", "Revenue", "Orders", "AOV"], rows: (monthly.data ?? []).map((r) => [month(r.month), inr(r.revenue), int(r.orders), inr(r.aov, { compact: false })]) }}
         >
           {monthly.isLoading ? <Skeleton className="h-[280px]" /> : (
-            <ResponsiveContainer width="100%" height={280}>
+            <>
+            <ChartLegend items={[
+              { label: "Revenue per month", color: "var(--ink-2)" },
+              { label: "Latest month", color: "var(--signal)" },
+            ]} />
+            <ResponsiveContainer width="100%" height={256}>
               <BarChart data={monthly.data} margin={{ left: 8, right: 8, top: 8 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="month" tickFormatter={month} tickLine={false} axisLine={false} minTickGap={24} />
@@ -109,6 +121,7 @@ export function Revenue() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </>
           )}
         </ChartFrame>
       </div>
@@ -118,7 +131,7 @@ export function Revenue() {
         <section className="panel reveal p-5">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="font-sans text-[15px] font-semibold">Category momentum</h3>
-            <Tag>K5</Tag>
+            <KpiInfo id="K5" />
           </div>
           {cats.isLoading ? <Skeleton className="h-[220px]" /> : (
             <table className="w-full text-[13.5px]">
@@ -143,7 +156,7 @@ export function Revenue() {
         <section className="panel reveal p-5">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="font-sans text-[15px] font-semibold">Cities</h3>
-            <Tag>K5 · K4 · K3</Tag>
+            <KpiInfo id="K5" />
           </div>
           {cities.isLoading ? <Skeleton className="h-[220px]" /> : (
             <table className="w-full text-[13.5px]">
@@ -164,15 +177,15 @@ export function Revenue() {
               </tbody>
             </table>
           )}
-          <p className="mt-3 text-[12.5px] text-ink-3">Cities are near-identical: the source dataset is synthetic and spreads orders evenly. The view still works on real data.</p>
+          <p className="mt-3 text-[12.5px] text-ink-3">Cities are near-identical because this demonstration data spreads orders evenly; with real data, differences show here.</p>
         </section>
       </div>
 
       <SectionTitle
         id="margin"
         title="What discounts cost"
-        note={margin.data ? `Estimated: ${margin.data.assumption}. Above a ${margin.data.break_even_discount_pct}% discount, a sale is below estimated cost.` : undefined}
-        right={<Tag tone="warn">ESTIMATED · K10</Tag>}
+        note={margin.data ? `Estimated, assuming goods cost 65% of their list price (real costs are not recorded). Above ${margin.data.break_even_discount_pct}% off, a sale no longer covers that cost.` : undefined}
+        right={<Tag tone="warn">Estimated</Tag>}
       />
       <div className="grid gap-4 xl:grid-cols-2">
         <ChartFrame
@@ -182,7 +195,12 @@ export function Revenue() {
           table={{ columns: ["Band", "Revenue", "Est. margin", "Margin %"], rows: (margin.data?.by_discount_band ?? []).map((b) => [`${b.band}%`, inr(b.revenue), inr(b.est_margin), pct(b.est_margin_pct)]) }}
         >
           {margin.isLoading ? <Skeleton className="h-[260px]" /> : (
-            <ResponsiveContainer width="100%" height={260}>
+            <>
+            <ChartLegend items={[
+              { label: "Estimated profit", color: "var(--ink-2)" },
+              { label: "Estimated loss (sold below cost)", color: "var(--signal)" },
+            ]} />
+            <ResponsiveContainer width="100%" height={236}>
               <BarChart data={margin.data?.by_discount_band} margin={{ left: 8, right: 8, top: 8 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="band" tickFormatter={(b) => `${b}%`} tickLine={false} axisLine={false} />
@@ -196,6 +214,7 @@ export function Revenue() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </>
           )}
         </ChartFrame>
         <section className="panel reveal p-5">

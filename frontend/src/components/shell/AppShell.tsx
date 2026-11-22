@@ -16,7 +16,7 @@ const NAV_INDEX = new Map(NAV.flatMap((g) => g.items).map((it, i) => [it.to, i +
 
 function Nav({ onNavigate }: { onNavigate?: () => void }) {
   return (
-    <nav aria-label="Main" className="flex flex-col gap-6">
+    <nav aria-label="Main" className="flex flex-col gap-5">
       {NAV.map((g) => (
         <div key={g.group}>
           <div className="label mb-2 px-3">{g.group}</div>
@@ -112,24 +112,22 @@ export function AppShell() {
       </a>
 
       {/* Sidebar (desktop) */}
-      <aside className="sticky top-0 hidden h-dvh flex-col justify-between border-r border-line bg-sunken/60 px-3 py-6 lg:flex">
-        <div className="flex flex-col gap-8">
-          <Brand />
+      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-sunken/60 px-3 pt-6 lg:flex">
+        <Brand />
+        {/* The nav scrolls on its own, so it never runs into the footer on short screens. */}
+        <div className="mt-7 min-h-0 flex-1 overflow-y-auto pb-6">
           <Nav />
         </div>
-        <a
-          href="https://adriansalvadorekomodev.vercel.app"
-          target="_blank"
-          rel="noreferrer"
-          className="mx-3 flex items-center gap-2.5 rounded-lg border border-line px-3 py-2.5 text-ink-3 transition-colors hover:text-ink"
-        >
-          <BrandMark size={16} className="text-ink-2" />
-          <span className="text-[11.5px] leading-tight">
-            Built by <span className="text-ink-2">adrián salvador ekomo</span>
-            <br />
-            data engineering <span className="text-signal">+</span> devops
-          </span>
-        </a>
+        <div className="border-t border-line px-3 py-4">
+          <a
+            href="https://adriansalvadorekomodev.vercel.app"
+            target="_blank"
+            rel="noreferrer"
+            className="text-[12.5px] text-ink-3 transition-colors hover:text-ink"
+          >
+            Built by <span className="font-medium text-ink-2 link-underline">adrián salvador ekomo</span>
+          </a>
+        </div>
       </aside>
 
       <div className="min-w-0">

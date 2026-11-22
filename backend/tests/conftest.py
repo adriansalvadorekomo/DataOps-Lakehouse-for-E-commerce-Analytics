@@ -106,7 +106,7 @@ def session(engine):
     s.commit()
     yield s
     # Reset mutated tables (keep catalog fixtures).
-    for table in ("public.import_rejections", "public.import_batches", "public.governance_runs",
+    for table in ("public.ai_interactions", "public.import_rejections", "public.import_batches", "public.governance_runs",
                   "public.order_items", "public.orders", "public.audit_log",
                   "public.document_chunks", "public.documents",
                   "public.revenue_forecasts"):

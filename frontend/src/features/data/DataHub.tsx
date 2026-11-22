@@ -25,7 +25,7 @@ export function DataHub() {
     { accessorKey: "filename", header: "File", cell: (c) => <span className="code">{c.getValue() as string}</span> },
     { accessorKey: "status", header: "Status", cell: (c) => { const s = c.getValue() as string; return <Tag tone={s === "completed" ? "good" : s === "failed" ? "signal" : "violet"}>{s}</Tag>; } },
     { accessorKey: "rows_accepted", header: "Added", meta: { numeric: true }, cell: (c) => int(c.getValue() as number) },
-    { accessorKey: "rows_duplicate", header: "Already known", meta: { numeric: true }, cell: (c) => int(c.getValue() as number) },
+    { accessorKey: "rows_duplicate", header: "Already loaded", meta: { numeric: true }, cell: (c) => int(c.getValue() as number) },
     { accessorKey: "rows_rejected", header: "Rejected", meta: { numeric: true }, cell: (c) => <span className={(c.getValue() as number) ? "font-semibold text-signal-ink" : ""}>{int(c.getValue() as number)}</span> },
     { accessorKey: "revenue_added", header: "Revenue added", meta: { numeric: true }, cell: (c) => inr(c.getValue() as number) },
     { accessorKey: "created_at", header: "When", meta: { numeric: true }, cell: (c) => relativeTime(c.getValue() as string) },
@@ -37,17 +37,17 @@ export function DataHub() {
       <PageHeader
         kicker="Trust · data & governance"
         title="Can I trust these numbers, and how does new data get in?"
-        question="Bring in new marketplace data, see exactly what the contract accepted or refused, and check every rule the books must satisfy."
+        question="Bring in new marketplace data, see exactly what was accepted or refused and why, and check that the records can be trusted."
         decision="Whether to report on today's numbers, and what to fix at the source."
         asOf={f?.as_of}
       />
 
       <div className="mb-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { l: "Orders in the books", v: f ? int(f.orders) : "—" },
+          { l: "Orders on record", v: f ? int(f.orders) : "—" },
           { l: "Latest order date", v: f ? date(f.as_of) : "—" },
           { l: "Forecast", v: f ? (f.forecast === "current" ? "current" : f.forecast === "stale" ? `${f.forecast_lag_days} days behind` : "not published") : "—", warn: f?.forecast !== "current" },
-          { l: "Databricks pipeline", v: trust.data?.workflow.label ?? "—" },
+          { l: "Analytics refresh", v: trust.data?.workflow.label ?? "—" },
         ].map((k) => (
           <div key={k.l} className="panel p-5">
             <div className="text-[13px] text-ink-3">{k.l}</div>
@@ -65,19 +65,18 @@ export function DataHub() {
         ) : <Skeleton className="h-[160px]" />}
       </section>
 
-      <SectionTitle id="governance" title="Data contract" note="Great Expectations validates the books against business-model rules R1–R7 + H1: keys, uniqueness, foreign keys, the money invariant, allowed values, ranges, dates and lifecycle hygiene." />
+      <SectionTitle id="governance" title="Data checks" note="Automatic checks that every record is complete, unique, correctly linked, correctly priced and possible. They run on demand and after every import." />
       <div className="mb-10"><Governance /></div>
 
-      <SectionTitle id="glossary" title="KPI glossary" note="Every number in this product links back to one of these definitions (docs/business-model.md)." />
+      <SectionTitle id="glossary" title="How the numbers are calculated" note="Every number in the app links back to one of these definitions." />
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {Object.values(KPIS).map((k) => (
           <div key={k.id} className="panel p-4">
             <div className="flex items-center gap-2">
-              <span className="code text-[12px] font-semibold text-ink-3">{k.id}</span>
               <span className="font-serif text-[16px] font-semibold">{k.name}</span>
               {k.estimated && <Tag tone="warn">estimated</Tag>}
             </div>
-            <p className="code mt-2 text-[12px] text-ink-2">{k.formula}</p>
+            <p className="mt-2 text-[13px] text-ink-2">{k.formula}</p>
             <p className="mt-2 text-[13px] text-ink-3">{k.decision}</p>
           </div>
         ))}

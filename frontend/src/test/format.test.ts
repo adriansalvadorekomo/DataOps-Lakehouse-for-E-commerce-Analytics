@@ -3,13 +3,13 @@ import { delta, inr, int, pct, pts, statusLabel } from "@/lib/format";
 import { KPIS, kpi } from "@/lib/kpi";
 
 describe("format", () => {
-  it("formats rupees in the Indian system", () => {
-    expect(inr(9_938_876_985)).toBe("₹994 Cr");
-    expect(inr(410_000_000)).toBe("₹41.00 Cr");
-    expect(inr(959_000)).toBe("₹9.6 L");
+  it("formats rupees in international units", () => {
+    expect(inr(9_938_876_985)).toBe("₹9.94B");
+    expect(inr(419_000_000)).toBe("₹419.0M");
+    expect(inr(959_000)).toBe("₹959K");
     expect(inr(9958)).toBe("₹9,958");
-    expect(inr(-1_200_000)).toBe("−₹12.0 L");
-    expect(int(1_000_000)).toBe("10,00,000");
+    expect(inr(-1_200_000)).toBe("−₹1.2M");
+    expect(int(1_000_000)).toBe("1,000,000");
   });
   it("formats rates and changes", () => {
     expect(pct(0.1162)).toBe("11.6%");

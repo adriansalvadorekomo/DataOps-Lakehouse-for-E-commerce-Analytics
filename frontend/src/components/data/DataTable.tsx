@@ -91,7 +91,7 @@ export function DataTable<T>({
       {pages > 1 && (
         <div className="mt-3 flex items-center justify-between text-[12.5px] text-ink-3">
           <span className="num">
-            Page {table.getState().pagination.pageIndex + 1} of {pages} · {data.length.toLocaleString("en-IN")} rows
+            Page {table.getState().pagination.pageIndex + 1} of {pages} · {data.length.toLocaleString("en-US")} rows
           </span>
           <div className="flex gap-1">
             <button className="rounded-md border border-line px-2.5 py-1 hover:text-ink disabled:opacity-40" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</button>

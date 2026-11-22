@@ -56,4 +56,8 @@ if ! $PSQL -d smart -tc "SELECT to_regclass('public.governance_runs')" | grep -q
   echo "→ applying 009_governance.sql"
   $PSQL -d smart -q -f "$(dirname "$0")/../../database/migrations/009_governance.sql" >/dev/null
 fi
+if ! $PSQL -d smart -tc "SELECT to_regclass('public.ai_interactions')" | grep -q ai_interactions; then
+  echo "→ applying 010_ai_feedback.sql"
+  $PSQL -d smart -q -f "$(dirname "$0")/../../database/migrations/010_ai_feedback.sql" >/dev/null
+fi
 echo "✓ postgres ready ($SOCKDIR:$PORT, db smart)"

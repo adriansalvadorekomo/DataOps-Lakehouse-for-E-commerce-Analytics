@@ -86,7 +86,7 @@ export function Customers() {
         </ChartFrame>
       </div>
 
-      <SectionTitle id="at-risk" title="Customer rhythm" note={churn.data?.rule} right={<KpiInfo id="K11" />} />
+      <SectionTitle id="at-risk" title="Customer rhythm" note="A repeat customer is 'at risk' when they have been quiet for more than twice their usual time between orders, and 'cooling' when they are past their usual time." right={<KpiInfo id="K11" />} />
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {churn.isLoading && [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[132px]" />)}
         {churn.data?.segments.map((s) => (

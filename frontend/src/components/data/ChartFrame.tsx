@@ -102,3 +102,23 @@ export function ChartTooltip({
     </div>
   );
 }
+
+/** What each colour in a chart means. `dashed` draws a dashed line swatch. */
+export function ChartLegend({ items }: { items: { label: string; color: string; shape?: "box" | "line" | "dashed" | "dot" }[] }) {
+  return (
+    <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[12.5px] text-ink-2" aria-label="Legend">
+      {items.map((it) => (
+        <li key={it.label} className="flex items-center gap-2">
+          {it.shape === "line" || it.shape === "dashed" ? (
+            <svg width="18" height="8" aria-hidden="true">
+              <line x1="0" y1="4" x2="18" y2="4" stroke={it.color} strokeWidth="2.2" strokeDasharray={it.shape === "dashed" ? "4 3" : undefined} />
+            </svg>
+          ) : (
+            <span className={it.shape === "dot" ? "size-2.5 rounded-full" : "size-2.5 rounded-[3px]"} style={{ background: it.color }} />
+          )}
+          {it.label}
+        </li>
+      ))}
+    </ul>
+  );
+}

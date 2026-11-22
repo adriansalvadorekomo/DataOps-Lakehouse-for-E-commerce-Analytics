@@ -28,15 +28,15 @@ export function SellerDetail() {
       <PageHeader
         kicker={`Seller · rated ${s.current_rating.toFixed(1)} / 5`}
         title={s.seller_id}
-        question={`Selling since ${date(s.lifetime.first_order)}; last order ${date(s.lifetime.last_order)}.${late ? " Delivers late more often than 90% of peers over the last year." : ""}${ret ? " Gets more returns than 90% of peers." : ""}`}
+        question={`Selling since ${date(s.lifetime.first_order)}; last order ${date(s.lifetime.last_order)}.${late ? " Delivers late more often than 9 in 10 sellers over the last year." : ""}${ret ? " Gets more returns than 9 in 10 sellers." : ""}`}
         decision="Grow, coach or put on a performance plan."
       />
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Fact label="Lifetime revenue" value={inr(s.lifetime.revenue)} />
         <Fact label="Orders" value={int(s.lifetime.orders)} />
         <Fact label="Average order value" value={inr(s.lifetime.aov, { compact: false })} />
-        <Fact label={`Late deliveries${p ? ` (peer p90 ${pct(p.delayed_p90)})` : ""}`} value={pct(s.lifetime.delayed_rate)} tone={late ? "signal" : undefined} />
-        <Fact label={`Returns${p ? ` (peer p90 ${pct(p.return_p90)})` : ""}`} value={pct(s.lifetime.return_rate)} tone={ret ? "signal" : undefined} />
+        <Fact label={`Late deliveries${p ? ` (typical seller ${pct(p.delayed_p50)})` : ""}`} value={pct(s.lifetime.delayed_rate)} tone={late ? "signal" : undefined} />
+        <Fact label={`Returns${p ? ` (typical seller ${pct(p.return_p50)})` : ""}`} value={pct(s.lifetime.return_rate)} tone={ret ? "signal" : undefined} />
       </div>
       <div className="mb-6 grid gap-4 xl:grid-cols-[2fr_1fr]">
         <MonthlyChart data={s.monthly} />

@@ -14,6 +14,7 @@ Each record says what was decided, why, what it costs, and **when to revisit it*
 | 8 | Local-first, with documented production equivalents | A cloud-only feature becomes essential |
 | 9 | The product is a control tower served live from PostgreSQL | Brief latency or OLTP load becomes a problem |
 | 10 | Data contracts with Great Expectations; idempotent CSV import | Data arrives as a stream, or contracts move to the catalog |
+| 11 | Ask answers in business language, logs every answer and its rating; no Genie in the product | Enough ratings exist to train a reward model |
 
 ---
 
@@ -88,6 +89,14 @@ Each record says what was decided, why, what it costs, and **when to revisit it*
 **Why GE.** Declarative, reviewable expectations with row-level results, running against both pandas and SQL — the same vocabulary for the file and the database. Rules stay aligned with the lakehouse gate (R1–R9).
 **Consequences.** A heavier dependency (imported lazily; usage analytics disabled). Two enforcement points to keep aligned, by rule ID.
 **Revisit when** data arrives as a stream (validate at ingestion instead), or the contracts move into the catalog (e.g. Unity Catalog expectations / DLT).
+
+## ADR-11 — Ask speaks business, and learns from its users
+
+**Context.** Ask offered three engines, one of them Databricks Genie (it writes SQL over Gold) and showed raw endpoint names as sources. Business users are not SQL experts; they want answers they can act on.
+**Decision.** Two sources only — *business data* and *our documents* — chosen in the prompt box, with attachments inside it. Answers and their sources use business language. Every answer is logged in `ai_interactions`; users rate it 👍/👎 (with an optional "what would have been more useful?"). Genie stays an analyst tool in the workspace, not in the product.
+**Why.** Plain answers are what the users need; ratings turn daily use into a preference dataset for later reward modelling / RLHF instead of guessing what "better" means.
+**Consequences.** One more table and three endpoints; the deterministic engine's phrasing is now tested against the suggestions the UI shows.
+**Revisit when** enough rated answers exist to train a reward model, or a language model replaces intent matching.
 
 ---
 

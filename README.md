@@ -34,6 +34,7 @@ A marketplace team does not need more dashboards; it needs to know **what to do 
 | Seller manager | Who hurts delivery or returns? | Seller flags against peers, only when statistically significant |
 | Fulfillment / inventory | What is stuck? What runs out first? | Shipments past their promise; a reorder list ranked by days of cover |
 | CRM / data science | Who is drifting away? | Customers quiet for more than twice their own usual gap, by lifetime value |
+| Anyone | A question in plain words | A Claude-style chat that answers like an assistant's briefing — a short report with the key figures, a chart chosen for the question and where to act; every answer can be rated 👍/👎, and ratings are kept to improve it |
 | Data owner | Can I report on this? | Great Expectations contracts on every import and on the books |
 
 **When new data arrives**, drop a marketplace export (CSV) on the *Data & governance* page: every row is checked by the import contract, valid rows are appended idempotently, rejected rows come back with the rule they broke, the books contract re-runs, and every window, KPI and signal moves forward on the next load. If the newest days look incomplete, the brief says *partial data* instead of reporting a collapse. → [docs/product.md](docs/product.md)
@@ -71,9 +72,9 @@ Measured on the full dataset (1,000,000 synthetic orders, 24 months):
 | Import, end to end on the 1M books | 505-row export: 300 added, 200 recognised as known, 5 rejected with their rule — validated in 0.8 s |
 | The brief | ~8 s cold, ~150 ms warm at 1M orders |
 | Forecast | Random Forest, 3.4% MAPE (rolling one-day-ahead, 90 days); Prophet 4.0% as second opinion |
-| Tests | 53 API · 4 CD · 27 lakehouse (no cluster) · 5 web; 10 CI jobs on every PR |
+| Tests | 59 API · 4 CD · 27 lakehouse (no cluster) · 6 web; 10 CI jobs on every PR |
 
-**What the data says** (analyst notes in [business-model.md §7](docs/business-model.md#7-what-the-data-says-analyst-notes)): revenue is flat at ₹379–428M a month (an earlier "30× growth" claim compared a one-day month with a full one); 39% of order lines carry 30–50% discounts and, under the 65% cost assumption, sell below cost past 35% off; repeat customers (45%) bring 67% of revenue; and no recorded attribute predicts returns — so the project ships a hotspot test, not a model with nothing to learn.
+**What the data says** (analyst notes in [business-model.md §7](docs/business-model.md#7-what-the-data-says-analyst-notes)): revenue is flat at ₹379–428M a month (an earlier "30× growth" claim compared a one-day month with a full one); category and brand turn out to be recorded per sale, not per product (89,933 of 89,999 product ids appear under several categories), so every breakdown uses the category *as sold*; 39% of order lines carry 30–50% discounts and, under the 65% cost assumption, sell below cost past 35% off; repeat customers (45%) bring 67% of revenue; and no recorded attribute predicts returns — so the project ships a hotspot test, not a model with nothing to learn.
 
 ## Quick start
 
@@ -99,7 +100,7 @@ The lakehouse logic runs without a cluster: `python -m unittest discover -s lake
 | [Business model](docs/business-model.md) | The contract: data, lifecycle, money flow, KPIs K1–K12, rules — and what the data actually says |
 | [Product](docs/product.md) | Who uses the Control Tower, the signals and their rules, what happens when data arrives, governance |
 | [Architecture](docs/architecture.md) | C4 diagrams, the two planes, data governance, the medallion |
-| [Decisions](docs/decisions.md) | Ten ADRs, each with when to revisit it |
+| [Decisions](docs/decisions.md) | Eleven ADRs, each with when to revisit it |
 | [Roadmap](docs/roadmap.md) | Done / now / next / later, each with a measure |
 | [Operations](docs/operations.md) | Setup, tasks, tests, CI/CD, Databricks, troubleshooting |
 
@@ -109,7 +110,7 @@ The lakehouse logic runs without a cluster: `python -m unittest discover -s lake
 |---|---|
 | [`frontend/`](frontend/) | The Control Tower: React 19, Vite, Tailwind v4, Radix, GSAP |
 | [`backend/`](backend/) | FastAPI: brief (`services/insights.py`), KPIs, entities, imports, governance (`governance/`), orders, AI |
-| [`database/`](database/) | PostgreSQL DDL: 9 migrations, invariants |
+| [`database/`](database/) | PostgreSQL DDL: 11 migrations, invariants |
 | [`lakehouse/`](lakehouse/) | Bronze / Silver / Gold, DQ rules R1–R9, notebooks, Gold SQL, the Workflows job, cluster-free tests |
 | [`scripts/`](scripts/) | Seed + acceptance, CD scripts, dev helpers |
 | [`infra/`](infra/) | Terraform (schemas, volumes, job), Docker Compose |

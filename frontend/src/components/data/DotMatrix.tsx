@@ -99,16 +99,22 @@ export function DotBar({
   dots = 24,
   tone = "ink",
   className,
+  fluid = false,
 }: {
   value: number;
   dots?: number;
   tone?: "ink" | "signal" | "violet" | "good" | "warn";
   className?: string;
+  /** Spread the dots across the available width instead of a fixed run. */
+  fluid?: boolean;
 }) {
   const lit = Math.round(Math.max(0, Math.min(1, value)) * dots);
   const color = { ink: "var(--ink)", signal: "var(--signal)", violet: "var(--violet)", good: "var(--good)", warn: "var(--warn)" }[tone];
   return (
-    <span className={cn("inline-flex items-center gap-[3px]", className)} aria-hidden="true">
+    <span
+      className={cn(fluid ? "flex w-full items-center justify-between gap-[2px]" : "inline-flex items-center gap-[3px]", className)}
+      aria-hidden="true"
+    >
       {Array.from({ length: dots }, (_, i) => (
         <span
           key={i}

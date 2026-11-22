@@ -66,7 +66,7 @@ export function BookOrder() {
             <div>
               <Dialog.Title className="font-serif text-[22px] font-semibold">Book an order</Dialog.Title>
               <Dialog.Description className="mt-1 text-[13px] text-ink-3">
-                Dated today. The API refuses unknown customers, products or sellers, and orders larger than the stock.
+                Dated today. Orders for unknown customers, products or sellers are refused, and so are orders larger than the stock.
               </Dialog.Description>
             </div>
             <Dialog.Close className="rounded-md p-1.5 text-ink-3 hover:text-ink" aria-label="Close"><X className="size-4" /></Dialog.Close>

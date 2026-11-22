@@ -13,8 +13,9 @@
 | | |
 |---|---|
 | Period | 31 Mar 2024 → 31 Mar 2026 (24 full months + 1 day) |
+| Units | Indian rupees, written in international units in the product (₹9.94B, ₹419.0M, ₹9,939) |
 | Orders | 1,000,000 (≈ 1,370 a day, every day) |
-| Revenue | **₹9,938,876,985** (≈ ₹994 Cr / ₹9.94B) |
+| Revenue | **₹9,938,876,985** (≈ ₹9.94B) |
 | Average order value | ₹9,938.88 |
 | Customers / sellers / products | 603,815 / 9,000 / 89,999 |
 | Catalogue | 5 categories · 16 subcategories · 12 brands · prices ₹200 – ₹80,000 (median ₹4,972) |
@@ -52,9 +53,9 @@ customers 1 ──< orders 1 ──< order_items >── 1 products 1 ──< in
 | `products` | one per product | 89,999 | `product_id` (`P…`); category, subcategory, brand; `current_price`, rating, reviews = latest snapshot |
 | `inventory` | one per product per day observed | ≈ 992,000 | `stock` 0–500; unique (product, date) |
 | `orders` | one per order | 1,000,000 | date, ship-to city, payment, device, `delivery_status`, promised `shipping_time_days` 1–6, `source_hash` |
-| `order_items` | one per order line | 1,000,000 | `unit_price` and `seller_rating_at_sale` as they were **at the time of sale**; `discount_pct` 0–70; `final_price` |
+| `order_items` | one per order line | 1,000,000 | `unit_price`, `seller_rating_at_sale`, **category, subcategory and brand** as they were **at the time of sale**; `discount_pct` 0–70; `final_price` |
 
-**Snapshot semantics matter.** Prices, ratings and stock are recorded *per event* in the source (89,981 of 89,999 products change price over time). History lives on the order line (`unit_price`, `seller_rating_at_sale`) and in `inventory`; the entity tables hold the latest value.
+**Snapshot semantics matter.** Prices, ratings, stock — and even category and brand — are recorded *per event* in the source (89,981 of 89,999 products change price; 89,933 appear under more than one category). History lives on the order line (`unit_price`, `seller_rating_at_sale`, `category`, `subcategory`, `brand`) and in `inventory`; the entity tables hold the latest value. **Every sales breakdown uses the values as sold**, never the product's latest ones.
 
 **Dropped or moved source columns:** `is_returned` is dropped (identical to `delivery_status = RETURNED`, 115,990 = 115,990: two columns saying the same thing eventually disagree). `location` moves to the order (`ship_to_city`) because 39% of customers order to more than one city.
 
@@ -146,7 +147,8 @@ These findings shape how the KPIs should — and should not — be used.
 6. **Returns are not predictable from what the data records.** 11.3–11.8% across categories and brands, and essentially zero correlation with discount (0.0007) or seller rating (0.0014). A return-propensity model (K12 as a model) would have no signal to learn on this data; the honest deliverable is the hotspot test, which correctly finds nothing material.
 7. **Repeat customers carry the business.** 45% of customers ordered more than once and they bring 67% of revenue; the top 10% of customers bring 39.5%. Typical repeat customers come back every ~6 months (median gap 188 days), so "quiet" must be judged against each customer's own rhythm — which is why K11 uses their personal gap, not a fixed 90 days.
 8. **Sellers are long-tail.** The top 10% of sellers make 13% of revenue, and a seller averages ~4–5 orders a month. Per-seller rates over short windows are noisy; flags therefore require a volume floor *and* statistical significance.
-9. **Cities, payment methods and devices are evenly split** (≈ ₹2.0B per city; 25% per payment method; 33% per device). That uniformity is a hallmark of synthetic data. The views keep them because real data would not be uniform.
+9. **Category and brand belong to the sale, not to the product.** 89,933 of 89,999 product ids appear under more than one category, and 89,971 under more than one brand. An earlier version of the model joined sales to each product's *latest* category, which spread revenue almost evenly (Electronics 24%) instead of the true split (Electronics 66%). Category, subcategory and brand are now stored on each order line as sold (migration 011) and used for every breakdown, in the app and in the lakehouse's `fact_sales`. In real data a product id would keep its category; here the ids are synthetic.
+10. **Cities, payment methods and devices are evenly split** (≈ ₹2.0B per city; 25% per payment method; 33% per device). That uniformity is a hallmark of synthetic data. The views keep them because real data would not be uniform.
 
 ---
 

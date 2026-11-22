@@ -35,8 +35,7 @@ export function ErrorState({ error, title = "This view could not load" }: { erro
       <div>
         <div className="font-semibold">{title}</div>
         <p className="mt-1 text-ink-2">
-          {offline ? "The API is not reachable. Start it with " : message}
-          {offline && <span className="code">mise run dev</span>}
+          {offline ? "The data service can't be reached right now. Please try again in a moment." : message}
         </p>
       </div>
     </div>

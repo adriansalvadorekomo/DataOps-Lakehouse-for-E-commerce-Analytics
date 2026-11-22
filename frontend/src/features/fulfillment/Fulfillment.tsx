@@ -7,7 +7,7 @@ import { api, type DeliveryStatus, type Order } from "@/lib/api";
 import { date, inr, int, pct, statusLabel } from "@/lib/format";
 import { usePeriod, useParam } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
-import { ChartFrame, ChartTooltip } from "@/components/data/ChartFrame";
+import { ChartFrame, ChartLegend, ChartTooltip } from "@/components/data/ChartFrame";
 import { DataTable } from "@/components/data/DataTable";
 import { DotBar } from "@/components/data/DotMatrix";
 import { KpiTile } from "@/components/data/KpiTile";
@@ -71,14 +71,17 @@ export function Fulfillment() {
       <div className="mb-8 grid gap-4 xl:grid-cols-2">
         <section className="panel reveal p-5">
           <h3 className="font-sans text-[15px] font-semibold">How orders ended · last {days} days</h3>
-          <p className="mb-5 mt-1 text-[13px] text-ink-3">IN TRANSIT → DELIVERED, DELAYED or RETURNED. The three outcomes are final.</p>
+          <p className="mb-5 mt-1 text-[13px] text-ink-3">Every order ends delivered, delivered late or returned; until then it is in transit. An ended order never changes again.</p>
           {f ? (
             <ul className="space-y-4">
               {f.statuses.map((s) => (
-                <li key={s.status} className="grid grid-cols-[120px_1fr_auto] items-center gap-4 text-[13.5px]">
+                <li key={s.status} className="grid grid-cols-[minmax(96px,120px)_minmax(0,1fr)_auto] items-center gap-3 text-[13.5px] sm:gap-4">
                   <span className="font-medium">{statusLabel(s.status)}</span>
-                  <DotBar value={s.share} dots={32} tone={TONE[s.status]} />
-                  <span className="num w-28 text-right"><span className="font-semibold">{pct(s.share)}</span> <span className="text-ink-3">{int(s.orders)}</span></span>
+                  <span className="min-w-0"><DotBar value={s.share} dots={20} tone={TONE[s.status]} fluid /></span>
+                  <span className="num whitespace-nowrap text-right">
+                    <span className="font-semibold">{pct(s.share)}</span>{" "}
+                    <span className="text-ink-3">· {int(s.orders)} orders</span>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -86,22 +89,26 @@ export function Fulfillment() {
         </section>
         <ChartFrame
           title="Still in transit, by age"
-          question="Open shipments from the last 30 days, by days on the road; red is past the promised delivery time."
+          question="Open shipments from the last 30 days, by days on the road."
           table={a ? { columns: ["Age", "Orders", "Past promise"], rows: a.buckets.map((b) => [b.bucket, b.orders, b.past_promise]) } : undefined}
         >
           {a ? (
             <div id="ageing" className="scroll-mt-24">
+              <ChartLegend items={[
+                { label: "Still in transit", color: "var(--violet)" },
+                { label: "Past the promised delivery time", color: "var(--signal)" },
+              ]} />
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={a.buckets.filter((b) => b.bucket !== "30+ days")} margin={{ left: 8, right: 8, top: 8 }}>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="bucket" tickLine={false} axisLine={false} />
                   <YAxis tickFormatter={(n) => int(n)} tickLine={false} axisLine={false} width={64} />
                   <Tooltip content={<ChartTooltip format={int} />} />
-                  <Bar dataKey="orders" name="In transit" fill="var(--violet)" fillOpacity={0.55} radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="orders" name="Still in transit" fill="var(--violet)" fillOpacity={0.55} radius={[3, 3, 0, 0]} />
                   <Bar dataKey="past_promise" name="Past promise" fill="var(--signal)" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-              <p className="mt-2 text-[12.5px] text-ink-3">{int(a.stale_over_30d)} orders have been "in transit" for more than 30 days: a data-hygiene issue (hygiene rule H1), not a delivery delay.</p>
+              <p className="mt-2 text-[12.5px] text-ink-3">Not shown: {int(a.stale_over_30d)} orders still marked "in transit" after more than 30 days. No delivery takes that long, so their status was never closed — a record-keeping issue to fix, not a late delivery.</p>
             </div>
           ) : <Skeleton className="h-[220px]" />}
         </ChartFrame>

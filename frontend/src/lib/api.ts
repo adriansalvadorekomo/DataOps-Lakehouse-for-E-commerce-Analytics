@@ -13,6 +13,7 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // init.signal lets callers cancel (e.g. "Stop" in Ask).
   const headers = new Headers(init?.headers);
   if (init?.body != null && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -316,15 +317,36 @@ export interface TrustStatus {
   genie: { status: string; label: string };
 }
 
-// ── AI ───────────────────────────────────────────────────────────────────────
-export type AskMode = "data" | "docs" | "genie";
+// ── Ask ──────────────────────────────────────────────────────────────────────
+/** "data": the marketplace's own records · "docs": attached documents only. */
+export type AskMode = "data" | "docs";
+export type ValueKind = "inr" | "pct" | "count" | "rating" | "share" | "date" | "id" | "text";
+export interface AskMetric { label: string; value: number | string; kind: ValueKind; note?: string | null }
+export interface AskTable {
+  title?: string | null;
+  columns: { key: string; label: string; kind: ValueKind }[];
+  rows: Record<string, number | string>[];
+}
 export interface AskResult {
+  /** Plain-text version (copy, feedback log). The structured fields drive the display. */
   answer: string;
   intent: string;
-  sources: { endpoint: string; params: Record<string, unknown>; document?: string | null; chunk_index?: number | null; score?: number | null }[];
-  sql?: string;
-  rows?: Record<string, unknown>[];
+  headline?: string | null;
+  metrics?: AskMetric[];
+  table?: AskTable | null;
+  takeaway?: string | null;
+  suggestions?: string[];
+  /** Report layer: title, date, the visual that answers the question, where to act, what to ask next. */
+  report?: string | null;
+  as_of?: string | null;
+  chart?: import("@/features/ask/ReportChart").ChartSpec | null;
+  next_step?: { label: string; link: string } | null;
+  follow_ups?: string[];
+  /** label is the business-facing name of a source; endpoint is for audit only. */
+  sources: { label: string; endpoint: string; document?: string | null; chunk_index?: number | null; score?: number | null }[];
+  interaction_id: number | null;
 }
+export type Rating = -1 | 0 | 1;
 export interface DocumentRecord {
   document_id: number; filename: string; mime_type: string; size_bytes: number;
   status: "uploaded" | "ready" | "failed"; error: string | null;
@@ -382,10 +404,14 @@ export const api = {
   contract: () => request<Contract>("/governance/contract"),
   trust: () => request<TrustStatus>("/trust/status"),
 
-  ask: (mode: AskMode, question: string) => {
-    const path = mode === "data" ? "/ai/ask" : mode === "docs" ? "/ai/ask-docs" : "/ai/ask-genie";
-    return request<AskResult>(path, { method: "POST", body: JSON.stringify({ question }) });
-  },
+  ask: (mode: AskMode, question: string, signal?: AbortSignal) =>
+    request<AskResult>(mode === "data" ? "/ai/ask" : "/ai/ask-docs", {
+      method: "POST", body: JSON.stringify({ question }), signal,
+    }),
+  rate: (interactionId: number, rating: Rating, comment?: string) =>
+    request<{ interaction_id: number; rating: number | null }>(`/ai/interactions/${interactionId}/feedback`, {
+      method: "POST", body: JSON.stringify({ rating, comment }),
+    }),
   documents: () => request<DocumentRecord[]>("/documents"),
   uploadDocument: (file: File) => {
     const form = new FormData();

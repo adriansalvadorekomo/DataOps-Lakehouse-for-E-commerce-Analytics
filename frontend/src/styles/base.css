@@ -88,6 +88,20 @@
   }
 }
 
+/* "Working…" text, shimmering like a live display (Ask). */
+.shimmer-text {
+  background: linear-gradient(90deg, var(--ink-3) 0%, var(--ink-3) 35%, var(--ink) 50%, var(--ink-3) 65%, var(--ink-3) 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer-move 2.2s linear infinite;
+}
+@keyframes shimmer-move {
+  from { background-position: 100% 0; }
+  to { background-position: -150% 0; }
+}
+
 /* Recharts, themed through the tokens. */
 .recharts-cartesian-grid line {
   stroke: var(--line);

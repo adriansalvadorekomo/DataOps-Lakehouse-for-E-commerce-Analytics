@@ -257,12 +257,12 @@ export function Today() {
             </div>
             <dl className="space-y-2.5 text-[13.5px]">
               <div className="flex justify-between gap-3">
-                <dt className="text-ink-3">Data contract</dt>
+                <dt className="text-ink-3">Data checks</dt>
                 <dd className={cn("font-medium",
                   gov.data?.status === "passed" && "text-good",
                   gov.data?.status === "warning" && "text-warn",
                   (gov.data?.status === "failed" || gov.data?.status === "error") && "text-signal-ink")}>
-                  {gov.data ? `${gov.data.successful}/${gov.data.evaluated} expectations met` : "not validated yet"}
+                  {gov.data ? `${gov.data.successful} of ${gov.data.evaluated} passed` : "not run yet"}
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
@@ -272,12 +272,12 @@ export function Today() {
               <div className="flex justify-between gap-3">
                 <dt className="text-ink-3">Forecast</dt>
                 <dd className={cn("font-medium", fresh.data?.forecast !== "current" && "text-warn")}>
-                  {fresh.data?.forecast === "current" ? "current" : fresh.data?.forecast === "stale" ? `${fresh.data.forecast_lag_days} days behind` : "not published"}
+                  {fresh.data?.forecast === "current" ? "up to date" : fresh.data?.forecast === "stale" ? `${fresh.data.forecast_lag_days} days behind` : "not published"}
                 </dd>
               </div>
             </dl>
             <p className="mt-3 border-t border-line pt-3 text-[12.5px] text-ink-3">
-              A Great Expectations contract checks the books (rules R1–R7 + H1) on demand and after every import.
+              Automatic checks confirm the records are complete and consistent. They run on demand and after every import.
             </p>
             <Link to="/data" className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-signal-ink link-underline">
               See the evidence <ArrowRight className="size-3.5" />

@@ -49,6 +49,8 @@ Applied in filename order by `apply.sh`. All are idempotent.
 | `007_documents.sql` | `documents` + `document_chunks` tables — RAG document registry and text chunks with embeddings |
 | `008_imports.sql` | `orders.source_hash` (row fingerprint for idempotent imports), `import_batches` + `import_rejections`, and moves the id sequences past seeded ids |
 | `009_governance.sql` | `governance_runs` — Great Expectations results of the books contract |
+| `010_ai_feedback.sql` | `ai_interactions` — every Ask answer with its 👍/👎 rating and comment (preference data for later RLHF) |
+| `011_sale_attributes.sql` | `order_items.category / subcategory / brand` **as sold** (they vary per sale in the source), backfilled from staging |
 
 `002_core_tables.sql` uses DROP + CREATE (not IF NOT EXISTS) — it is an early-scaffold full refresh. All later migrations use `IF NOT EXISTS` and are safely rerunnable.
 

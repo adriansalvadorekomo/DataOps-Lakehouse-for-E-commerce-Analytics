@@ -5,8 +5,9 @@ import { Download, FileUp } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { ruleLabel } from "./plain";
 
-/** Drop a marketplace export; the Great Expectations import contract gates every row. */
+/** Drop a marketplace export; every row is checked (Great Expectations) before it is added. */
 export function ImportPanel() {
   const [drag, setDrag] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -16,7 +17,7 @@ export function ImportPanel() {
   const m = useMutation({
     mutationFn: api.uploadImport,
     onSuccess: (b) => {
-      toast.success(`${b.filename} received`, { description: "Validating against the data contract…" });
+      toast.success(`${b.filename} received`, { description: "Checking every row…" });
       qc.invalidateQueries({ queryKey: ["imports"] });
       navigate(`/data/imports/${b.batch_id}`);
     },
@@ -36,7 +37,7 @@ export function ImportPanel() {
         <FileUp className="size-7 text-ink-3" />
         <div className="font-serif text-[19px] font-semibold">Drop a marketplace export (.csv)</div>
         <p className="max-w-sm text-[13.5px] text-ink-2">
-          Every row is checked against the data contract. Valid rows are appended; already-known rows are skipped; broken rows come back with the rule they broke.
+          Every row is checked before it is added. Rows already loaded are skipped, and any row with a problem comes back with the reason.
         </p>
         <input ref={input} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => { take(e.target.files?.[0]); e.target.value = ""; }} />
         <div className="mt-1 flex flex-wrap justify-center gap-2">
@@ -50,17 +51,17 @@ export function ImportPanel() {
         </div>
       </div>
       <div className="panel p-5">
-        <div className="label mb-3">The import contract · Great Expectations</div>
+        <div className="label mb-3">What every row is checked for</div>
         <ul className="space-y-2 text-[13px]">
           {rules.data && Object.entries(rules.data.rules).map(([rule, why]) => (
             <li key={rule} className="flex gap-3">
-              <span className="code w-28 shrink-0 font-medium text-ink">{rule}</span>
+              <span className="w-36 shrink-0 font-medium text-ink">{ruleLabel(rule)}</span>
               <span className="text-ink-2">{why}</span>
             </li>
           ))}
         </ul>
         <p className="mt-4 border-t border-line pt-3 text-[12.5px] text-ink-3">
-          {rules.data ? `${rules.data.columns.length} columns, same as the source dataset; up to ${Math.round(rules.data.max_bytes / 1048576)} MB.` : ""} After an import, the books contract is re-validated automatically.
+          {rules.data ? `${rules.data.columns.length} columns, the same as the marketplace export; up to ${Math.round(rules.data.max_bytes / 1048576)} MB.` : ""} After an import, all the records are checked again automatically.
         </p>
       </div>
     </div>
