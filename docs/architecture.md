@@ -18,21 +18,21 @@ The architecture is drawn with the [C4 model](https://c4model.com): **Level 1** 
 ### Level 2 — Containers
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="diagrams/c4/c4-container-dark.png">
-  <img src="diagrams/c4/c4-container-light.png" width="100%" alt="C4 Level 2: operational plane (React console, FastAPI backend, forecast job, PostgreSQL 16), analytical plane on Databricks (landing volume, Bronze, Silver, DQ gate R1-R9, Gold, Workflows job, AI/BI dashboards, MLflow, Genie, Foundation Model API), delivery plane (GitHub repo, CI, CD, Terraform, mise + uv).">
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/c4/c4-container-dark@2x.png">
+  <img src="diagrams/c4/c4-container-light@2x.png" width="100%" alt="C4 Level 2 container diagram. Operational plane (Docker Compose): the marketplace team uses the React Control Tower, which calls the FastAPI backend; marketplace exports enter through POST /imports, gated row by row by Great Expectations contracts inside the API, which also validate the books in PostgreSQL 16; a batch job writes revenue forecasts. The 1M-row CSV seeds PostgreSQL and is uploaded to a Unity Catalog volume. Analytical plane (Databricks): a Workflows job runs Landing, Bronze, Silver, the fail-fast DQ gate R1-R9 (highlighted) and Gold; Gold feeds AI/BI dashboards and Genie and MLflow; the API asks the Foundation Model API for document answers. Delivery (GitHub): CI with 10 jobs, CD on a v* tag, Terraform, mise + uv.">
 </picture>
 
-**How to read Level 2.** Cards with a coloured top bar are containers (the green one is a library inside the API), cylinders are data stores, grey cards are external systems, and dashed rounded boxes are boundaries (where a group of containers runs). The three planes:
+**How to read Level 2.** Cards are containers; a card with a hairline under its header is a data store; tinted cards are external systems; the dashed card is a library inside the API; dashed rounded boxes are boundaries (where a group of containers runs). Each card's logos sit on a black chip, and the one orange card is the fail-fast DQ gate R1–R9, the reason the project exists. The three planes:
 
 | Plane | Runs on | Contains |
 |---|---|---|
-| Operational (blue) | Docker Compose, 3 containers (or `mise run dev` locally) | Control Tower → FastAPI → PostgreSQL; Great Expectations contracts inside the API gate imports and validate the books; the forecast job writes `revenue_forecasts` |
-| Analytical (orange) | Databricks Free Edition, Unity Catalog `workspace.*` | Landing volume → Bronze → Silver → DQ gate → Gold, run as one Workflows job; Gold feeds AI/BI dashboards, Genie and MLflow |
-| Delivery (violet) | GitHub | PR → CI (10 jobs) → `v*` tag → CD (images, compose smoke, deploy job + validate Gold); Terraform provisions the workspace assets |
+| Operational | Docker Compose, 3 containers (or `mise run dev` locally) | Control Tower → FastAPI → PostgreSQL; Great Expectations contracts inside the API gate imports and validate the books; the forecast job writes `revenue_forecasts` |
+| Analytical (and the medallion job) | Databricks Free Edition, Unity Catalog `workspace.*` | Landing volume → Bronze → Silver → DQ gate → Gold, run as one Workflows job; Gold feeds AI/BI dashboards, Genie and MLflow |
+| Delivery | GitHub | PR → CI (10 jobs) → `v*` tag → CD (images, compose smoke, deploy job + validate Gold); Terraform provisions the workspace assets |
 
 **Data in.** The 1M-row CSV seeds PostgreSQL (`mise run seed`, 8 acceptance checks) and is uploaded to the landing volume (`mise run dbx-upload`), from which Bronze loads with `COPY INTO`. New marketplace exports enter through the API (`POST /imports`), gated row by row by the Great Expectations import contract. The designed production path is a JDBC snapshot from PostgreSQL into Bronze ([ADR-2](decisions.md)). Free Edition cannot reach a private database, so the diagram draws the path that actually runs.
 
-**Regenerate.** The diagrams are code: `python docs/diagrams/c4/build_c4.py` rewrites the SVGs and renders 2× PNGs with headless Chromium (`--svg-only` skips the browser). Fonts (Inter, JetBrains Mono, OFL) and logos ([Simple Icons](https://simpleicons.org), CC0) are vendored in `docs/diagrams/c4/assets/`, so the build needs no network. If a number in the diagram changes in the code (tests, CI jobs, revenue), change it in `build_c4.py` and re-run.
+**Regenerate.** The diagrams are code. Level 2 (`c4-container-*`) is drawn by `docs/diagrams/c4/build_container.py` with `kit/c4kit.py`, the same engine and design system as the EventZilla, Episteme and RoadAnomaly diagrams (IBM Plex Mono and Schibsted Grotesk, OFL; logos from [Simple Icons](https://simpleicons.org) 16.38.1, CC0; the dot-matrix mark), all vendored in `docs/diagrams/c4/kit/assets/`: `uv run --no-project --with fonttools --with brotli python docs/diagrams/c4/build_container.py --png`. The build refuses to write a diagram whose boxes or labels overlap or whose arrows cross a box. Level 1 (`c4-context-*`) is still drawn by `build_c4.py` (Inter, JetBrains Mono; `docs/diagrams/c4/assets/`). If a number in a diagram changes in the code (tests, CI jobs, revenue), change it in the script and re-run.
 
 ---
 

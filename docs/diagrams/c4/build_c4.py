@@ -4,7 +4,7 @@
 Outputs, in this folder, one SVG + one PNG per level and theme:
 
     c4-context-{dark,light}.{svg,png}
-    c4-container-{dark,light}.{svg,png}
+    (c4-container-* is drawn by build_container.py)
 
 The SVGs need no network: Inter / JetBrains Mono (OFL) are embedded as
 base64 woff2 and the technology logos are inline paths from Simple Icons
@@ -637,7 +637,8 @@ def main() -> None:
     browser = None if svg_only else chromium()
     if not svg_only and not browser:
         sys.exit("Chromium not found: install it or pass --svg-only")
-    for name, fn, size in (("context", context, (2400, 1420)), ("container", container, (2400, 1930))):
+    # Level 2 (c4-container-*) is drawn by build_container.py with kit/c4kit.py; this script keeps Level 1.
+    for name, fn, size in (("context", context, (2400, 1420)),):
         for theme in THEMES:
             out = HERE / f"c4-{name}-{theme}.svg"
             out.write_text(fn(theme))
