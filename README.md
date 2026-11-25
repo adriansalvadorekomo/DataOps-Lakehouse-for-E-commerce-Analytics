@@ -131,6 +131,34 @@ The lakehouse logic runs without a cluster: `python -m unittest discover -s lake
 | [`infra/`](infra/) | Terraform (schemas, volumes, job), Docker Compose |
 | [`bi/`](bi/), [`ml/`](ml/), [`notebooks/`](notebooks/) | AI/BI dashboard exports, forecasting, EDA |
 
+## Limitations
+
+What the project does not do yet, and how it lives with it today (details in [decisions.md](docs/decisions.md#known-limits) and [operations.md](docs/operations.md#databricks-free-edition)).
+
+- **Synthetic data.** 1M orders over 24 months: the figures show the pipeline's discipline, not a business result.
+- **Full refresh.** Silver and Gold rebuild from Bronze on every run (15–25 min at 1M rows). Fine at this size; past ~10M rows it needs an incremental `MERGE`.
+- **A CSV seam between the planes.** Databricks Free Edition cannot reach a private PostgreSQL, so Bronze loads the same CSV from a Unity Catalog volume. The lakehouse is only as fresh as the last upload.
+- **Two enforcement points.** The Great Expectations contracts and the Spark gate share rule IDs, but they are separate code that must stay aligned.
+- **One small serverless cluster.** No autoscaling, no enterprise Lakeflow expectations; one serial job.
+- **Estimated margin.** Costs are not in the source, so margin uses a 65% cost assumption and is labelled *estimated* everywhere.
+- **One real data-quality warning stays open.** ≈ 281,000 orders are still "in transit" after 30+ days (H1); they are excluded from the late-delivery rate.
+- **No return-propensity model.** No feature in the source predicts returns, so no model is served.
+- **Single operator.** Local Terraform state, environment-variable secrets, no authentication or roles yet.
+
+## What's next
+
+From the [roadmap](docs/roadmap.md), each item with the measure that says it is done.
+
+| Next move | Why | Done when |
+|---|---|---|
+| Re-run the lakehouse with categories as sold | Gold category figures match the books | `fact_sales` by category validates against the seed (Electronics 66%) |
+| Close never-finished shipments (H1) | A late-delivery rate built on complete data | H1 cleared, or a documented rule closes statuses older than 30 days |
+| Schedule the forecast refresh | The outlook never trails the books | Retrain after each import or nightly; no "forecast stale" signal in steady state |
+| Incremental lakehouse (`MERGE`) | Scale past ~10M rows | Silver/Gold runtime grows with new rows, not total rows |
+| Change-data capture into Bronze | Remove the CSV seam | Bronze lag under 15 minutes |
+| Real cost of goods | Replace the 65% assumption | `products.unit_cost` populated; margin no longer *estimated* |
+| Observability | See the system, not just the data | Latency, brief compute time and contract results as metrics with SLOs |
+
 ---
 
 <p align="center">
