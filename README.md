@@ -62,10 +62,10 @@ Ask a question in plain words and the answer comes back the way an executive ass
 ## How it works
 
 <p align="center">
-  <a href="docs/diagrams/c4/c4-container-dark.svg">
+  <a href="docs/diagrams/c4/c4-container-light.svg">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/c4/c4-container-dark.png">
-      <img src="docs/diagrams/c4/c4-container-light.png" width="100%" alt="C4 Level 2 container diagram. Operational plane: Control Tower web app, FastAPI, forecast job, Great Expectations data contracts and PostgreSQL 16, with marketplace exports entering through POST /imports. Analytical plane on Databricks: landing volume, Bronze, Silver, DQ gate R1–R9 and Gold, run by Databricks Workflows, feeding AI/BI dashboards, Genie and MLflow. Delivery plane: GitHub, CI (10 jobs), CD, Terraform, mise + uv.">
+      <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/c4/c4-container-dark@2x.png">
+      <img src="docs/diagrams/c4/c4-container-light@2x.png" width="100%" alt="C4 Level 2 container diagram. Operational plane (Docker Compose): the marketplace team uses the React Control Tower, which calls the FastAPI backend; marketplace exports enter through POST /imports, gated row by row by Great Expectations contracts inside the API, which also validate the books in PostgreSQL 16; a batch job writes revenue forecasts. The 1M-row CSV seeds PostgreSQL and is uploaded to a Unity Catalog volume. Analytical plane (Databricks): a Workflows job runs Landing, Bronze, Silver, the fail-fast DQ gate R1-R9 (highlighted) and Gold; Gold feeds AI/BI dashboards and Genie and MLflow; the API asks the Foundation Model API for document answers. Delivery (GitHub): CI with 10 jobs, CD on a v* tag, Terraform, mise + uv.">
     </picture>
   </a>
   <br><sub>C4 Level 2 — click for the full-resolution SVG · <a href="docs/diagrams/c4/c4-context-light.png">Level 1: system context</a> · <a href="docs/architecture.md">architecture</a></sub>
